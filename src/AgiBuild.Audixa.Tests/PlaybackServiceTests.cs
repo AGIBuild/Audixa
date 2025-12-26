@@ -128,6 +128,28 @@ public sealed class PlaybackServiceTests
         Assert.Equal(2, store.SaveProgressCalls);
     }
 
+    [Fact]
+    public void Open_WithSavedPosition_SeeksWhenDurationKnown()
+    {
+        var adapter = new FakeAdapter();
+        var notifications = new FakeNotifications();
+        var store = new FakeLibraryStoreWithResume(TimeSpan.FromSeconds(12));
+        var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
+
+        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time);
+        var item = new MediaItem("m1", "test.mp4", MediaSourceKind.Local, "file:///test.mp4", null);
+        svc.Open(item, new DirectUriPlaybackInput(new Uri("file:///test.mp4")));
+
+        // Resume should not seek until duration metadata arrives.
+        Assert.Equal(0, adapter.SeekCalls);
+
+        adapter.RaiseDuration(TimeSpan.FromSeconds(100));
+
+        Assert.Equal(1, adapter.SeekCalls);
+        Assert.Equal(TimeSpan.FromSeconds(12), adapter.LastSeek);
+        Assert.Equal(TimeSpan.FromSeconds(12), svc.State.Position);
+    }
+
     private sealed class FakeAdapter : IMediaPlayerAdapter
     {
         public int PlayCalls { get; private set; }
@@ -200,6 +222,25 @@ public sealed class PlaybackServiceTests
         }
 
         public Task<TimeSpan?> GetLastPositionAsync(string mediaItemId) => Task.FromResult<TimeSpan?>(null);
+
+        public Task<System.Collections.Generic.IReadOnlyList<MediaItem>> GetRecentAsync(int limit) =>
+            Task.FromResult<System.Collections.Generic.IReadOnlyList<MediaItem>>(Array.Empty<MediaItem>());
+    }
+
+    private sealed class FakeLibraryStoreWithResume : ILibraryStore
+    {
+        private readonly TimeSpan _resume;
+
+        public FakeLibraryStoreWithResume(TimeSpan resume)
+        {
+            _resume = resume;
+        }
+
+        public Task UpsertMediaAsync(MediaItem item, DateTimeOffset playedAtUtc) => Task.CompletedTask;
+
+        public Task SaveProgressAsync(string mediaItemId, TimeSpan position, DateTimeOffset updatedAtUtc) => Task.CompletedTask;
+
+        public Task<TimeSpan?> GetLastPositionAsync(string mediaItemId) => Task.FromResult<TimeSpan?>(_resume);
 
         public Task<System.Collections.Generic.IReadOnlyList<MediaItem>> GetRecentAsync(int limit) =>
             Task.FromResult<System.Collections.Generic.IReadOnlyList<MediaItem>>(Array.Empty<MediaItem>());

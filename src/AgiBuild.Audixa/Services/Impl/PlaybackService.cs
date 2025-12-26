@@ -14,6 +14,8 @@ public sealed class PlaybackService : IPlaybackService
     private readonly TimeProvider _timeProvider;
     private DateTimeOffset _lastAutoSavedAtUtc = DateTimeOffset.MinValue;
     private TimeSpan _lastAutoSavedPosition = TimeSpan.Zero;
+    private TimeSpan? _pendingResumePosition;
+    private bool _resumeApplied;
 
     private static readonly TimeSpan AutoSaveMinInterval = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan AutoSaveMinDelta = TimeSpan.FromSeconds(1);
@@ -55,7 +57,11 @@ public sealed class PlaybackService : IPlaybackService
             _lastAutoSavedPosition = pos;
             _ = _libraryStore.SaveProgressAsync(State.CurrentItem.Id, pos, now);
         };
-        _adapter.DurationChanged += (_, dur) => State.Duration = dur;
+        _adapter.DurationChanged += (_, dur) =>
+        {
+            State.Duration = dur;
+            TryApplyResumeSeek();
+        };
         _adapter.ErrorRaised += (_, err) =>
         {
             State.ErrorMessage = err;
@@ -73,6 +79,7 @@ public sealed class PlaybackService : IPlaybackService
         }
 
         State.ErrorMessage = null;
+        TryApplyResumeSeek();
         // Start autosave window from the moment playback starts.
         _lastAutoSavedAtUtc = _timeProvider.GetUtcNow();
         _lastAutoSavedPosition = State.Position;
@@ -120,12 +127,52 @@ public sealed class PlaybackService : IPlaybackService
         State.Speed = 1.0;
         _lastAutoSavedAtUtc = _timeProvider.GetUtcNow();
         _lastAutoSavedPosition = TimeSpan.Zero;
+        _pendingResumePosition = null;
+        _resumeApplied = false;
 
         _adapter.Open(input);
         MediaOpened?.Invoke(this, item);
 
         _ = _libraryStore.UpsertMediaAsync(item, _timeProvider.GetUtcNow());
         _logger.LogInformation("Opened media: {MediaId} {Name} ({SourceKind})", item.Id, item.DisplayName, item.SourceKind);
+
+        // Best-effort resume: load last position asynchronously and apply once metadata is available.
+        _ = LoadResumePositionAsync(item.Id);
+    }
+
+    private async System.Threading.Tasks.Task LoadResumePositionAsync(string mediaItemId)
+    {
+        try
+        {
+            var pos = await _libraryStore.GetLastPositionAsync(mediaItemId).ConfigureAwait(false);
+            if (pos is null || pos.Value <= TimeSpan.Zero)
+                return;
+
+            _pendingResumePosition = pos.Value;
+            TryApplyResumeSeek();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to load resume position for {MediaId}", mediaItemId);
+        }
+    }
+
+    private void TryApplyResumeSeek()
+    {
+        if (_resumeApplied)
+            return;
+        if (State.CurrentItem is null)
+            return;
+        if (_pendingResumePosition is not { } pos)
+            return;
+
+        // Ensure we have some metadata before seeking (duration is the simplest signal).
+        if (State.Duration is null)
+            return;
+
+        _adapter.Seek(pos);
+        State.Position = pos;
+        _resumeApplied = true;
     }
 }
 

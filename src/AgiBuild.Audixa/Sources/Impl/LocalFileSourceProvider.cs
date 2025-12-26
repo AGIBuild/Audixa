@@ -26,11 +26,12 @@ public sealed class LocalFileSourceProvider : ISourceProvider
         if (uri is null)
             return null;
 
+        var locator = uri.ToString();
         var item = new MediaItem(
-            Id: Guid.NewGuid().ToString("N"),
+            Id: MediaItemId.From(MediaSourceKind.Local, locator),
             DisplayName: Path.GetFileName(uri.LocalPath),
             SourceKind: MediaSourceKind.Local,
-            SourceLocator: uri.ToString(),
+            SourceLocator: locator,
             Duration: null);
 
         return new MediaOpenRequest(item, new DirectUriPlaybackInput(uri));

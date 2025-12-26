@@ -166,7 +166,7 @@ public partial class LibraryViewModel : ViewModelBase
         }
 
         var item = new MediaItem(
-            Id: Guid.NewGuid().ToString("N"),
+            Id: MediaItemId.From(MediaSourceKind.Smb, entry.FullPath),
             DisplayName: Path.GetFileName(entry.FullPath),
             SourceKind: MediaSourceKind.Smb,
             SourceLocator: entry.FullPath,
