@@ -1,6 +1,7 @@
 ## 1. Implementation
 - [ ] 1.1 Add DI container and app composition root (shared + platform adapters registration)
 - [ ] 1.2 Build `Shell` navigation (Library / Player / Learning) with global overlays (Toast + MiniPlayer)
+- [ ] 1.2.1 Implement MVP screens aligned with `docs/` prototypes (responsive adaptations allowed on mobile)
 - [ ] 1.3 Define MVP domain models (MediaItem, SubtitleLine, Playlist, SavedSentence, VocabularyItem)
 - [ ] 1.4 Define application service interfaces (`IPlaybackService`, `ISourceProvider`, `ISubtitleService`, `ILibraryStore`, `ILearningStore`, `INotificationService`)
 

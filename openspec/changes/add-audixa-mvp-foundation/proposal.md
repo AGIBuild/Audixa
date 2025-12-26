@@ -11,6 +11,7 @@ Audixa aims to combine modern source access (Local/NAS) with language-learning-f
 - Add local persistence with **SQLite** for playback progress, recents, saved sentences, and vocabulary.
 - Keep Desktop playback intentionally limited by OS codec availability in MVP, and design a future-ready path for on-the-fly transcoding into supported streams.
 - Keep the design **sync-ready** for v2.0 cloud sync (stable IDs + change tracking), but do not ship cloud sync in MVP.
+- Implement MVP UI/UX aligned with the provided prototypes under `docs/` (desktop follows layout and interactions; mobile uses responsive adaptations while preserving interactions).
 
 ## Non-Goals (MVP)
 - Browser platform
@@ -25,6 +26,7 @@ Audixa aims to combine modern source access (Local/NAS) with language-learning-f
 ## Impact
 - **New specs (proposed capabilities)**:
   - `app-shell`
+  - `ui-prototype`
   - `source-access`
   - `media-playback`
   - `subtitle-system`

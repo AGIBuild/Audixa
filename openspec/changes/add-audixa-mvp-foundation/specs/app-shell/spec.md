@@ -26,4 +26,11 @@ The application SHALL provide in-app notifications including transient toasts an
 - **WHEN** a playback error occurs (e.g., media cannot be opened)
 - **THEN** a top alert SHALL be shown describing the error
 
+### Requirement: Prototype-aligned shell structure
+The application SHALL align the top-level structure and navigation labels with the provided prototypes under `docs/`.
+
+#### Scenario: Library/Player/Learning are discoverable from Shell
+- **WHEN** the user opens the application
+- **THEN** the Shell SHALL present navigation entries consistent with the prototypes for Library, Player, and Learning
+
 
