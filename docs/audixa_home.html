@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audixa - Home</title>
+    <style>
+        :root {
+            --primary: #8B008B; /* DarkMagenta */
+            --secondary: #DA70D6; /* Orchid */
+            --accent: #FF00FF; /* Magenta/Fuchsia */
+            --dark-bg: #1a051a;
+            --card-bg: #2d0a2d;
+            --text-main: #ffffff;
+            --text-dim: #d1a3d1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--dark-bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--primary), #4a004a);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: white;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+        }
+
+        .logo span {
+            color: var(--accent);
+            margin-right: 5px;
+        }
+
+        /* Main Content */
+        .container {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        h2 {
+            border-left: 4px solid var(--accent);
+            padding-left: 10px;
+            margin-bottom: 20px;
+            color: var(--secondary);
+        }
+
+        /* Grid for Sources */
+        .source-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            border: 1px solid rgba(255, 0, 255, 0.1);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(218, 112, 214, 0.3);
+            border-color: var(--accent);
+        }
+
+        .icon-box {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-size: 1.5rem;
+        }
+
+        .card h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .card p {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-top: 5px;
+        }
+
+        /* Recent Files List */
+        .recent-section {
+            margin-top: 40px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.05);
+            margin-bottom: 10px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .file-item:hover {
+            background-color: rgba(218, 112, 214, 0.2);
+        }
+
+        .file-icon {
+            margin-right: 15px;
+            color: var(--secondary);
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            display: block;
+            font-weight: 600;
+        }
+
+        .file-path {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .progress-bar {
+            width: 100px;
+            height: 6px;
+            background-color: #444;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-left: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--accent);
+            width: 45%; /* Demo value */
+        }
+
+        /* Floating Action Button */
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            font-size: 2rem;
+            color: white;
+            cursor: pointer;
+            border: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo"><span>⚡</span> Audixa</div>
+        <div style="font-size: 1.2rem;">👤</div>
+    </header>
+
+    <div class="container">
+        <h2>Add Source (全源接入)</h2>
+        <div class="source-grid">
+            <div class="card">
+                <div class="icon-box">📂</div>
+                <h3>Local Storage</h3>
+                <p>Device Files</p>
+            </div>
+            <div class="card">
+                <div class="icon-box">☁️</div>
+                <h3>Quark Cloud</h3>
+                <p>夸克网盘</p>
+            </div>
+            <div class="card">
+                <div class="icon-box">🖥️</div>
+                <h3>SMB / NAS</h3>
+                <p>Home Server</p>
+            </div>
+            <div class="card">
+                <div class="icon-box">🌐</div>
+                <h3>WebDAV</h3>
+                <p>Alist / Generic</p>
+            </div>
+        </div>
+
+        <div class="recent-section">
+            <h2>Continue Learning (最近播放)</h2>
+            <div class="file-item">
+                <div class="file-icon">▶️</div>
+                <div class="file-info">
+                    <span class="file-name">Friends S01E01.mkv</span>
+                    <span class="file-path">NAS > TV Shows > Friends</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 75%"></div></div>
+            </div>
+            <div class="file-item">
+                <div class="file-icon">🎧</div>
+                <div class="file-info">
+                    <span class="file-name">TED Talk: Power of Habit.mp3</span>
+                    <span class="file-path">WebDAV > Audiobooks</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 20%"></div></div>
+            </div>
+            <div class="file-item">
+                <div class="file-icon">▶️</div>
+                <div class="file-info">
+                    <span class="file-name">The Office S03E05.mp4</span>
+                    <span class="file-path">Quark > Comedy</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width: 5%"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <button class="fab">+</button>
+
+</body>
+</html>

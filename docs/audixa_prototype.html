@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audixa - 全能语料复读机</title>
+    <style>
+        :root {
+            /* Audixa Theme Variables */
+            --bg-dark: #0f0b15;
+            --bg-panel: #1a1625;
+            --primary: #9d4edd; /* Soft Purple */
+            --accent: #ff00ff; /* Electric Magenta */
+            --text-main: #e0e0e0;
+            --text-dim: #8a8a9b;
+            --surface-hover: #2d2638;
+            --border-glow: 0 0 10px rgba(157, 78, 221, 0.3);
+            --font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Navigation --- */
+        nav {
+            height: 60px;
+            background: rgba(26, 22, 37, 0.95);
+            border-bottom: 1px solid rgba(157, 78, 221, 0.2);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+            cursor: pointer;
+        }
+
+        .nav-items button {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 16px;
+            margin-left: 20px;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .nav-items button.active, .nav-items button:hover {
+            color: var(--accent);
+        }
+
+        /* --- Main Layout --- */
+        main {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: none;
+            flex-direction: column;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .screen.active { display: flex; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- Home/Source Screen --- */
+        .source-grid {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .source-card {
+            background: var(--bg-panel);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .source-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: var(--border-glow);
+        }
+
+        .source-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+
+        .source-name { font-weight: 600; }
+
+        /* --- Player Screen --- */
+        .player-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 350px; /* Video | Sidebar */
+            grid-template-rows: 1fr 100px; /* Content | Controls */
+            height: 100%;
+        }
+
+        /* Video Area */
+        .video-area {
+            grid-column: 1;
+            grid-row: 1;
+            background: #000;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .video-placeholder {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, #2a2035, #000);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.1);
+            font-size: 80px;
+        }
+
+        /* Floating Subtitle Overlay in Video */
+        .subtitle-overlay {
+            position: absolute;
+            bottom: 10%;
+            width: 90%;
+            text-align: center;
+            pointer-events: none; /* Let clicks pass through unless interactive */
+        }
+        
+        .sub-text {
+            background: rgba(0,0,0,0.6);
+            padding: 8px 16px;
+            border-radius: 8px;
+            display: inline-block;
+            font-size: 24px;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            margin: 4px 0;
+            pointer-events: auto;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        
+        .sub-text.blur { filter: blur(8px); }
+        .sub-text:hover { background: rgba(157, 78, 221, 0.6); }
+
+        /* Sidebar (Subtitle List / Learning) */
+        .sidebar {
+            grid-column: 2;
+            grid-row: 1 / 3; /* Span full height */
+            background: var(--bg-panel);
+            border-left: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            font-weight: 700;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .subtitle-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .sub-item {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .sub-item:hover { background: var(--surface-hover); }
+        .sub-item.active {
+            background: rgba(157, 78, 221, 0.15);
+            border-left-color: var(--accent);
+        }
+
+        .sub-time { font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
+        .sub-en { font-size: 14px; margin-bottom: 2px; }
+        .sub-cn { font-size: 13px; color: #bbb; }
+
+        /* Control Bar */
+        .controls-area {
+            grid-column: 1;
+            grid-row: 2;
+            background: var(--bg-panel);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding: 0 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            cursor: pointer;
+            margin-bottom: 15px;
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 35%;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            border-radius: 2px;
+            position: relative;
+        }
+        
+        /* AB Markers on timeline */
+        .ab-marker {
+            position: absolute;
+            top: -4px;
+            width: 2px;
+            height: 12px;
+            background-color: var(--accent);
+            z-index: 10;
+            display: none;
+        }
+        .ab-marker::after { content: attr(data-label); font-size: 10px; position: absolute; top: -14px; left: -3px; color: var(--accent); }
+
+        .control-buttons {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .main-controls {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            color: var(--text-main);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            padding: 8px;
+            border-radius: 50%;
+        }
+
+        .btn-icon:hover {
+            color: var(--accent);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .btn-play {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 50%;
+            color: white;
+            box-shadow: 0 4px 15px rgba(157, 78, 221, 0.4);
+        }
+        .btn-play:hover { transform: scale(1.05); color: white; }
+
+        /* Special AB Button Styling */
+        .btn-ab {
+            font-weight: 700;
+            font-size: 14px;
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--text-dim);
+            color: var(--text-dim);
+            border-radius: 12px; /* Squircle */
+            position: relative;
+        }
+        
+        .btn-ab.state-a {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 8px rgba(255, 0, 255, 0.3);
+        }
+        .btn-ab.state-a::after { content: 'A-?'; font-size: 8px; position: absolute; bottom: -14px; width: 100%; text-align: center; }
+
+        .btn-ab.state-b {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+            box-shadow: 0 0 12px rgba(255, 0, 255, 0.5);
+        }
+        .btn-ab.state-b::after { content: 'A-B Loop'; font-size: 8px; position: absolute; bottom: -14px; width: 100%; text-align: center; color: var(--accent); }
+
+        /* Styled Prev/Next buttons to match theme */
+        .btn-seek svg {
+            width: 28px;
+            height: 28px;
+            fill: currentColor;
+        }
+
+        .right-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .mask-btn {
+            font-size: 12px;
+            padding: 4px 10px;
+            border: 1px solid var(--text-dim);
+            border-radius: 4px;
+            color: var(--text-dim);
+        }
+        .mask-btn.active { border-color: var(--primary); color: var(--primary); }
+
+        /* --- Icons (SVG) --- */
+        .icon-lg { width: 32px; height: 32px; fill: currentColor; }
+        .icon-md { width: 24px; height: 24px; fill: currentColor; }
+        
+        /* Learning Screen Styles */
+        .learning-container { padding: 40px; max-width: 1000px; margin: 0 auto; width: 100%; overflow-y: auto; }
+        .stats-row { display: flex; gap: 20px; margin-bottom: 40px; }
+        .stat-card { flex: 1; background: var(--bg-panel); padding: 25px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }
+        .stat-num { font-size: 32px; font-weight: 700; color: var(--accent); }
+        
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="logo" onclick="switchScreen('home')">Audixa</div>
+        <div class="nav-items">
+            <button onclick="switchScreen('home')" id="nav-home">资源库</button>
+            <button onclick="switchScreen('player')" id="nav-player">正在播放</button>
+            <button onclick="switchScreen('learning')" id="nav-learning">学习中心</button>
+        </div>
+    </nav>
+
+    <main>
+        <!-- SCREEN 1: HOME -->
+        <div id="home-screen" class="screen active">
+            <div class="source-grid">
+                <div class="source-card" onclick="switchScreen('player')">
+                    <div class="source-icon">📂</div>
+                    <div class="source-name">本地文件</div>
+                    <div style="font-size:12px; color:var(--text-dim); margin-top:5px;">5 个最近文件</div>
+                </div>
+                <div class="source-card" onclick="switchScreen('player')">
+                    <div class="source-icon">☁️</div>
+                    <div class="source-name">WebDAV (NAS)</div>
+                    <div style="font-size:12px; color:var(--text-dim); margin-top:5px;">192.168.1.5</div>
+                </div>
+                <div class="source-card" onclick="switchScreen('player')">
+                    <div class="source-icon">🔄</div>
+                    <div class="source-name">夸克网盘</div>
+                </div>
+                <div class="source-card" onclick="switchScreen('player')">
+                    <div class="source-icon">🌐</div>
+                    <div class="source-name">在线资源搜索</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: PLAYER -->
+        <div id="player-screen" class="screen">
+            <div class="player-container">
+                <!-- Video Section -->
+                <div class="video-area">
+                    <div class="video-placeholder">▶</div>
+                    <div class="subtitle-overlay">
+                        <!-- Dynamic Subtitles -->
+                        <div class="sub-text sub-en" id="vid-sub-en">The resource acquisition process is fragmented.</div><br>
+                        <div class="sub-text sub-cn" id="vid-sub-cn">资源获取的过程是割裂的。</div>
+                    </div>
+                </div>
+
+                <!-- Controls Section -->
+                <div class="controls-area">
+                    <!-- Progress with AB Markers -->
+                    <div class="progress-container">
+                        <div class="progress-bar"></div>
+                        <div id="marker-a" class="ab-marker" data-label="A" style="left: 30%;"></div>
+                        <div id="marker-b" class="ab-marker" data-label="B" style="left: 45%;"></div>
+                    </div>
+
+                    <div class="control-buttons">
+                        <!-- Function Buttons -->
+                        <div class="right-controls" style="margin-right: auto;">
+                            <button class="mask-btn" onclick="toggleMask()" id="mask-btn">👁️ 遮罩: 无</button>
+                            <span style="font-size:12px; color:var(--text-dim)">1.0x</span>
+                        </div>
+
+                        <!-- Main Transport -->
+                        <div class="main-controls">
+                            <!-- Prev Sentence: Custom SVG for perfect match -->
+                            <button class="btn-icon btn-seek" title="上一句">
+                                <svg viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z" /></svg>
+                            </button>
+
+                            <!-- Play/Pause -->
+                            <button class="btn-icon btn-play">
+                                <svg viewBox="0 0 24 24" class="icon-lg" style="margin-left:2px;"><path d="M8 5v14l11-7z" /></svg>
+                            </button>
+
+                            <!-- Next Sentence: Custom SVG for perfect match -->
+                            <button class="btn-icon btn-seek" title="下一句">
+                                <svg viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6-8.5-6z" /></svg>
+                            </button>
+                        </div>
+
+                        <!-- AB Loop & Tools -->
+                        <div class="right-controls" style="margin-left: auto;">
+                            <!-- AB Button Implementation -->
+                            <button class="btn-icon btn-ab" id="ab-btn" onclick="toggleAB()">AB</button>
+                            <button class="btn-icon" title="收藏句子">❤️</button>
+                            <button class="btn-icon" title="字幕列表">📑</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar Section -->
+                <div class="sidebar">
+                    <div class="sidebar-header">
+                        <span>字幕列表</span>
+                        <span style="font-size: 12px; color: var(--accent);">SRT [英/中]</span>
+                    </div>
+                    <div class="subtitle-list">
+                        <div class="sub-item">
+                            <div class="sub-time">00:12</div>
+                            <div class="sub-en">Hello everyone, welcome to Audixa.</div>
+                            <div class="sub-cn">大家好，欢迎来到 Audixa。</div>
+                        </div>
+                        <div class="sub-item active">
+                            <div class="sub-time">00:15</div>
+                            <div class="sub-en">The resource acquisition process is fragmented.</div>
+                            <div class="sub-cn">资源获取的过程是割裂的。</div>
+                        </div>
+                        <div class="sub-item">
+                            <div class="sub-time">00:19</div>
+                            <div class="sub-en">We want to change how you learn languages.</div>
+                            <div class="sub-cn">我们想要改变你学习语言的方式。</div>
+                        </div>
+                        <div class="sub-item">
+                            <div class="sub-time">00:24</div>
+                            <div class="sub-en">Just click the subtitle to seek.</div>
+                            <div class="sub-cn">点击字幕即可跳转。</div>
+                        </div>
+                        <div class="sub-item">
+                            <div class="sub-time">00:28</div>
+                            <div class="sub-en">Long press to look up words in dictionary.</div>
+                            <div class="sub-cn">长按即可查词。</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 3: LEARNING -->
+        <div id="learning-screen" class="screen">
+            <div class="learning-container">
+                <h1 style="margin-bottom: 20px;">学习进度</h1>
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-num">142</div>
+                        <div style="color:var(--text-dim)">累计精听句子</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-num">56</div>
+                        <div style="color:var(--text-dim)">生词本单词</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-num">12h</div>
+                        <div style="color:var(--text-dim)">本周学习时长</div>
+                    </div>
+                </div>
+
+                <h3>最近收藏的句子</h3>
+                <div style="margin-top: 20px;">
+                    <div class="sub-item" style="background: var(--bg-panel); border:1px solid rgba(255,255,255,0.05);">
+                        <div class="sub-en" style="font-size: 18px;">It's not just about watching, it's about interacting.</div>
+                        <div class="sub-cn">这不仅仅是观看，更是交互。</div>
+                        <div style="margin-top:10px; display:flex; gap:10px;">
+                            <span style="font-size:12px; background:#333; padding:2px 8px; border-radius:4px;">Tech</span>
+                            <span style="font-size:12px; background:#333; padding:2px 8px; border-radius:4px;">Easy</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Screen Navigation Logic
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-items button').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(screenId + '-screen').classList.add('active');
+            if(document.getElementById('nav-' + screenId)) {
+                document.getElementById('nav-' + screenId).classList.add('active');
+            }
+        }
+
+        // AB Loop Logic
+        let abState = 0; // 0: None, 1: A set, 2: B set (Looping)
+        const abBtn = document.getElementById('ab-btn');
+        const markerA = document.getElementById('marker-a');
+        const markerB = document.getElementById('marker-b');
+
+        function toggleAB() {
+            abState = (abState + 1) % 3;
+            
+            // Reset UI
+            abBtn.className = 'btn-icon btn-ab';
+            markerA.style.display = 'none';
+            markerB.style.display = 'none';
+
+            if (abState === 1) {
+                // Set A
+                abBtn.classList.add('state-a');
+                markerA.style.display = 'block';
+                // Mock setting A at current progress
+            } else if (abState === 2) {
+                // Set B (Loop Active)
+                abBtn.classList.add('state-b');
+                markerA.style.display = 'block';
+                markerB.style.display = 'block';
+            }
+        }
+
+        // Subtitle Mask Logic
+        let maskState = 0; // 0: None, 1: Hide CN, 2: Hide EN, 3: Blind
+        const maskLabels = ["无", "隐中", "隐英", "盲听"];
+        
+        function toggleMask() {
+            maskState = (maskState + 1) % 4;
+            document.getElementById('mask-btn').innerText = `👁️ 遮罩: ${maskLabels[maskState]}`;
+            
+            const enSub = document.getElementById('vid-sub-en');
+            const cnSub = document.getElementById('vid-sub-cn');
+
+            // Reset
+            enSub.classList.remove('blur');
+            cnSub.classList.remove('blur');
+
+            if (maskState === 1) cnSub.classList.add('blur');
+            if (maskState === 2) enSub.classList.add('blur');
+            if (maskState === 3) { cnSub.classList.add('blur'); enSub.classList.add('blur'); }
+        }
+
+        // Initial setup
+        switchScreen('player'); // Start on player for demo
+    </script>
+</body>
+</html>

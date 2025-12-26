@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audixa - Player</title>
+    <style>
+        :root {
+            --primary: #8B008B;
+            --accent: #FF00FF;
+            --bg: #000000;
+            --overlay-bg: rgba(45, 10, 45, 0.9);
+            --text-active: #ffffff;
+            --text-inactive: #888888;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: white;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Video Area */
+        .video-container {
+            flex: 1;
+            background: #111;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 40%;
+        }
+
+        .video-placeholder {
+            color: #555;
+            font-size: 1.5rem;
+        }
+
+        /* Interactive Subtitle List */
+        .subtitle-area {
+            flex: 1;
+            background-color: #1a051a;
+            overflow-y: auto;
+            padding: 10px 0;
+            border-top: 1px solid #444;
+        }
+
+        .sub-line {
+            padding: 12px 20px;
+            border-left: 4px solid transparent;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .sub-line:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .sub-line.active {
+            background-color: rgba(139, 0, 139, 0.3);
+            border-left-color: var(--accent);
+        }
+
+        .sub-text-en {
+            font-size: 1.1rem;
+            color: var(--text-active);
+            margin-bottom: 4px;
+        }
+
+        .sub-text-cn {
+            font-size: 0.9rem;
+            color: #d1a3d1;
+        }
+
+        /* Masking Effect applied via class */
+        .mask-en .sub-text-en { filter: blur(6px); user-select: none; }
+        .mask-cn .sub-text-cn { filter: blur(6px); user-select: none; }
+        .mask-en .sub-text-en:hover, .mask-cn .sub-text-cn:hover { filter: none; } /* Peek on hover */
+
+        /* Controls */
+        .controls {
+            background-color: #2d0a2d;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .timeline {
+            width: 100%;
+            height: 4px;
+            background: #555;
+            position: relative;
+        }
+        .timeline-fill {
+            width: 30%;
+            height: 100%;
+            background: var(--accent);
+        }
+
+        .buttons-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        button:hover { color: var(--accent); }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .active-mode {
+            color: var(--accent);
+            text-shadow: 0 0 5px var(--accent);
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            background: #555;
+            padding: 2px 6px;
+            border-radius: 4px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Video Area -->
+    <div class="video-container">
+        <div class="video-placeholder">[Video Content Stream from NAS]</div>
+        <!-- Floating overlay for words -->
+        <div style="position: absolute; bottom: 20px; text-align: center; width: 80%; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px;">
+            <span style="font-size: 1.4rem; color: #fff;">This is the <span style="color: yellow; text-decoration: underline;">current</span> sentence being played.</span>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <div class="timeline"><div class="timeline-fill"></div></div>
+        
+        <div class="buttons-row">
+            <div class="btn-group">
+                <button title="Mask English">👁️‍🗨️ EN</button>
+                <button title="Mask Chinese" class="active-mode">👁️‍🗨️ CN</button>
+            </div>
+
+            <div class="btn-group" style="align-items: center;">
+                <button>⏮️</button> <!-- Prev Sentence -->
+                <button class="btn-primary">❚❚</button>
+                <button>⏭️</button> <!-- Next Sentence -->
+            </div>
+
+            <div class="btn-group">
+                <button title="AB Repeat">🅰️🅱️</button>
+                <button title="Speed">1.0x</button>
+                <button title="Settings">⚙️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subtitle Interface (The Core) -->
+    <div class="subtitle-area mask-cn">
+        <div class="sub-line">
+            <div class="sub-text-en">Hey, how are you doing today?</div>
+            <div class="sub-text-cn">嘿，你今天过得怎么样？</div>
+        </div>
+        <div class="sub-line active">
+            <div class="sub-text-en">This is the current sentence being played.</div>
+            <div class="sub-text-cn">这是正在播放的句子。</div>
+        </div>
+        <div class="sub-line">
+            <div class="sub-text-en">I was wondering if we could meet later.</div>
+            <div class="sub-text-cn">我在想我们要不要待会儿见个面。</div>
+        </div>
+        <div class="sub-line">
+            <div class="sub-text-en">Sure, that sounds like a plan.</div>
+            <div class="sub-text-cn">当然，听起来不错。</div>
+        </div>
+        <div class="sub-line">
+            <div class="sub-text-en">Don't forget to bring the documents.</div>
+            <div class="sub-text-cn">别忘了带文件。</div>
+        </div>
+    </div>
+
+</body>
+</html>

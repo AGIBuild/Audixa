@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audixa - Notifications & MiniPlayer</title>
+    <style>
+        :root {
+            --primary: #8B008B;
+            --accent: #FF00FF;
+            --bg: #1a051a; /* Background for demo purposes */
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Grid background to show transparency */
+            background-image: linear-gradient(#2d0a2d 1px, transparent 1px), linear-gradient(90deg, #2d0a2d 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* --- NOTIFICATION COMPONENTS --- */
+
+        /* 1. Top Alert Bar (System Critical) */
+        .top-alert {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: #ffcc00;
+            color: #000;
+            padding: 8px;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 2. Toast Notifications (Transient) */
+        .toast-container {
+            position: fixed;
+            bottom: 100px; /* Above mini player */
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .toast {
+            background: rgba(45, 10, 45, 0.85);
+            backdrop-filter: blur(10px);
+            border-left: 4px solid var(--accent);
+            padding: 15px 20px;
+            border-radius: 4px;
+            color: white;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+            min-width: 250px;
+            display: flex;
+            align-items: center;
+            animation: slideIn 0.3s ease-out;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-left-width: 4px;
+        }
+
+        .toast-icon { margin-right: 15px; font-size: 1.2rem; }
+        .toast-content { flex: 1; }
+        .toast-title { font-weight: bold; font-size: 0.95rem; margin-bottom: 2px; }
+        .toast-msg { font-size: 0.85rem; color: #ccc; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* 3. Mini Player (Persistent Footer) */
+        .mini-player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: #240524;
+            border-top: 1px solid rgba(255,0,255,0.2);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.6);
+            z-index: 900;
+        }
+
+        .mp-cover {
+            width: 45px;
+            height: 45px;
+            background-color: #444;
+            border-radius: 4px;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .mp-info { flex: 1; margin-right: 20px; }
+        .mp-title { font-weight: bold; color: white; display: block; font-size: 0.95rem; }
+        .mp-sub { font-size: 0.8rem; color: var(--accent); }
+
+        .mp-controls { display: flex; align-items: center; gap: 20px; margin-right: 20px; }
+        .mp-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        .mp-btn:hover { color: var(--accent); }
+        .mp-play { font-size: 1.8rem; }
+
+        /* Progress Bar on Top of MiniPlayer */
+        .mp-progress {
+            position: absolute;
+            top: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: rgba(255,255,255,0.1);
+        }
+        .mp-progress-fill {
+            width: 45%;
+            height: 100%;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Demo Content -->
+    <div style="text-align: center; color: #888;">
+        <h2>Notification Center Demo</h2>
+        <p>This layout demonstrates overlay elements.</p>
+    </div>
+
+    <!-- 1. Top Alert (Hidden by default usually, shown here for demo) -->
+    <!-- <div class="top-alert">
+        ⚠️ Network Connection Lost - Retrying (WebDAV)...
+    </div> -->
+
+    <!-- 2. Toast Stack -->
+    <div class="toast-container">
+        <!-- Success Toast -->
+        <div class="toast">
+            <div class="toast-icon">✅</div>
+            <div class="toast-content">
+                <div class="toast-title">Added to List</div>
+                <div class="toast-msg">"Meticulous" added to Vocabulary.</div>
+            </div>
+        </div>
+
+        <!-- Info Toast (Subtitle) -->
+        <div class="toast">
+            <div class="toast-icon">📝</div>
+            <div class="toast-content">
+                <div class="toast-title">Subtitle Synced</div>
+                <div class="toast-msg">Offset adjusted by +500ms.</div>
+            </div>
+        </div>
+
+        <!-- Download Toast -->
+        <div class="toast">
+            <div class="toast-icon">☁️</div>
+            <div class="toast-content">
+                <div class="toast-title">Downloading...</div>
+                <div class="toast-msg">Friends S01E02 (45%)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Mini Player Bar -->
+    <div class="mini-player">
+        <div class="mp-progress"><div class="mp-progress-fill"></div></div>
+        
+        <div class="mp-cover">📺</div>
+        <div class="mp-info">
+            <span class="mp-title">Friends S01E01 - The One Where...</span>
+            <span class="mp-sub">05:22 / 22:45 • NAS</span>
+        </div>
+
+        <div class="mp-controls">
+            <button class="mp-btn">⏮️</button>
+            <button class="mp-btn mp-play">❚❚</button>
+            <button class="mp-btn">⏭️</button>
+        </div>
+
+        <button class="mp-btn" title="Expand Playlist">📑</button>
+    </div>
+
+</body>
+</html>

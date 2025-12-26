@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audixa - Playlist Manager</title>
+    <style>
+        :root {
+            --primary: #8B008B;
+            --primary-dark: #5e005e;
+            --accent: #FF00FF;
+            --bg: #1a051a;
+            --panel-bg: #2d0a2d;
+            --item-hover: #3d1a3d;
+            --text-main: #ffffff;
+            --text-dim: #b08bb0;
+            --border: #4a1a4a;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar (Saved Playlists) */
+        .sidebar {
+            width: 260px;
+            background-color: #120312;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+        }
+
+        .sidebar-header {
+            padding: 0 20px 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .playlist-nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            transition: 0.2s;
+        }
+
+        .playlist-nav-item:hover { background-color: var(--item-hover); color: white; }
+        .playlist-nav-item.active { 
+            background-color: var(--panel-bg); 
+            color: var(--accent);
+            border-left: 3px solid var(--accent);
+        }
+        
+        .playlist-icon { margin-right: 10px; }
+
+        /* Main Content (Current List) */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg);
+        }
+
+        .toolbar {
+            height: 60px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+            background: linear-gradient(to right, var(--panel-bg), var(--bg));
+        }
+
+        .toolbar-title { font-size: 1.2rem; font-weight: 600; }
+        
+        .action-btn {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--accent);
+            padding: 6px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 10px;
+            transition: 0.2s;
+        }
+
+        .action-btn:hover { background: var(--primary); color: white; }
+        .action-btn.filled { background: var(--accent); color: white; border: none; }
+
+        /* List Items */
+        .queue-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .queue-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            background-color: rgba(255,255,255,0.02);
+            border: 1px solid transparent;
+            transition: 0.2s;
+        }
+
+        .queue-item:hover {
+            background-color: var(--item-hover);
+            border-color: rgba(255,0,255,0.3);
+        }
+
+        .queue-item.playing {
+            background: linear-gradient(90deg, rgba(139,0,139,0.4), transparent);
+            border-left: 3px solid var(--accent);
+        }
+
+        .drag-handle { color: #555; cursor: grab; padding-right: 15px; font-size: 1.2rem; }
+        
+        .item-info { flex: 1; }
+        .item-title { font-weight: 500; display: block; margin-bottom: 4px; }
+        
+        /* Source Badges */
+        .item-meta { font-size: 0.75rem; color: var(--text-dim); display: flex; align-items: center; gap: 8px; }
+        .badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .badge-nas { background: #005f73; color: #fff; } /* Teal for NAS */
+        .badge-cloud { background: #ca6702; color: #fff; } /* Orange for Cloud */
+        .badge-local { background: #9b2226; color: #fff; } /* Red for Local */
+
+        .item-duration { font-family: monospace; color: var(--text-dim); margin-left: 15px; }
+        
+        .item-actions { margin-left: 15px; opacity: 0; transition: 0.2s; }
+        .queue-item:hover .item-actions { opacity: 1; }
+        .icon-btn { cursor: pointer; color: #888; background: none; border: none; font-size: 1rem; }
+        .icon-btn:hover { color: var(--accent); }
+
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar: Playlists -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            LIBRARY
+            <span style="font-size: 1.2rem; cursor: pointer;">+</span>
+        </div>
+        <div class="playlist-nav-item active">
+            <span class="playlist-icon">▶️</span> Current Queue
+        </div>
+        <div class="playlist-nav-item">
+            <span class="playlist-icon">⭐</span> Favorites
+        </div>
+        <div class="playlist-nav-item">
+            <span class="playlist-icon">🇺🇸</span> Friends S1 (Raw)
+        </div>
+        <div class="playlist-nav-item">
+            <span class="playlist-icon">🇬🇧</span> BBC 6 Minute English
+        </div>
+        <div class="playlist-nav-item">
+            <span class="playlist-icon">🎧</span> Daily Listening (Mixed)
+        </div>
+    </div>
+
+    <!-- Main Content: Queue -->
+    <div class="main-content">
+        <div class="toolbar">
+            <div class="toolbar-title">Current Queue (5 Tracks)</div>
+            <div>
+                <button class="action-btn">Clear All</button>
+                <button class="action-btn filled">+ Add Files</button>
+            </div>
+        </div>
+
+        <div class="queue-list">
+            <!-- Item 1: Playing (NAS) -->
+            <div class="queue-item playing">
+                <div class="drag-handle">≡</div>
+                <div class="item-info">
+                    <span class="item-title">Friends.S01E01.The.One.Where.Monica.Gets.a.Roommate.mkv</span>
+                    <div class="item-meta">
+                        <span class="badge badge-nas">NAS (SMB)</span>
+                        <span>/srv/video/tv/friends/</span>
+                    </div>
+                </div>
+                <div class="item-duration">22:45</div>
+                <div class="item-actions">
+                    <button class="icon-btn">🗑️</button>
+                </div>
+                <div style="margin-left: 10px; color: var(--accent);">📊 Playing</div>
+            </div>
+
+            <!-- Item 2: Cloud -->
+            <div class="queue-item">
+                <div class="drag-handle">≡</div>
+                <div class="item-info">
+                    <span class="item-title">TED_Talk_The_Power_of_Introverts.mp4</span>
+                    <div class="item-meta">
+                        <span class="badge badge-cloud">Quark</span>
+                        <span>/Learning/TED/2024/</span>
+                    </div>
+                </div>
+                <div class="item-duration">18:32</div>
+                <div class="item-actions">
+                    <button class="icon-btn">❤️</button>
+                    <button class="icon-btn">🗑️</button>
+                </div>
+            </div>
+
+            <!-- Item 3: Local -->
+            <div class="queue-item">
+                <div class="drag-handle">≡</div>
+                <div class="item-info">
+                    <span class="item-title">IELTS_Speaking_Part2_Practice.mp3</span>
+                    <div class="item-meta">
+                        <span class="badge badge-local">Local</span>
+                        <span>Downloads/Audio/</span>
+                    </div>
+                </div>
+                <div class="item-duration">04:15</div>
+                <div class="item-actions">
+                    <button class="icon-btn">❤️</button>
+                    <button class="icon-btn">🗑️</button>
+                </div>
+            </div>
+
+            <!-- Item 4: WebDAV -->
+            <div class="queue-item">
+                <div class="drag-handle">≡</div>
+                <div class="item-info">
+                    <span class="item-title">Economist_Podcast_Business_Daily.mp3</span>
+                    <div class="item-meta">
+                        <span class="badge badge-cloud" style="background: #5a189a;">WebDAV</span>
+                        <span>192.168.1.5:5005/Podcasts</span>
+                    </div>
+                </div>
+                <div class="item-duration">12:10</div>
+                <div class="item-actions">
+                    <button class="icon-btn">❤️</button>
+                    <button class="icon-btn">🗑️</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
