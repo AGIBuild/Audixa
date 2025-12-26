@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:AgiBuild.Audixa.ViewModels"
+             xmlns:conv="using:AgiBuild.Audixa.Converters"
+             mc:Ignorable="d"
+             x:Class="AgiBuild.Audixa.Views.NotificationHostView"
+             x:DataType="vm:NotificationHostViewModel">
+  <UserControl.Resources>
+    <conv:IsNotNullConverter x:Key="IsNotNullConverter" />
+  </UserControl.Resources>
+  <Grid>
+    <!-- Top alert -->
+    <Border Background="#ffcc00"
+            IsVisible="{Binding TopAlertMessage, Converter={StaticResource IsNotNullConverter}}"
+            Padding="10"
+            VerticalAlignment="Top">
+      <TextBlock Text="{Binding TopAlertMessage}" Foreground="Black" FontWeight="Bold" />
+    </Border>
+
+    <!-- Toast stack -->
+    <ItemsControl ItemsSource="{Binding Toasts}"
+                  HorizontalAlignment="Right"
+                  VerticalAlignment="Bottom"
+                  Margin="0,0,20,90">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <StackPanel Spacing="10"/>
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:ToastViewModel">
+          <Border Background="#d92d0a2d" BorderBrush="#44ffffff" BorderThickness="1" CornerRadius="6" Padding="14" Width="280">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="White"/>
+              <TextBlock Text="{Binding Message}" Opacity="0.8" Foreground="White" FontSize="12"/>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </Grid>
+</UserControl>

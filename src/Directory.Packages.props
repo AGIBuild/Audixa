@@ -1,22 +1,29 @@
 <Project>
-    <!-- https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management -->
-    <PropertyGroup>
-        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    </PropertyGroup>
-    <ItemGroup>
-        <!-- Avalonia packages -->
-        <!-- Important: keep version in sync! -->
-        <PackageVersion Include="Avalonia" Version="11.3.9" />
-        <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.9" />
-        <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.9" />
-        <PackageVersion Include="Avalonia.Diagnostics" Version="11.3.9" />
-        <PackageVersion Include="Avalonia.Desktop" Version="11.3.9" />
-        <PackageVersion Include="Avalonia.iOS" Version="11.3.9" />
-        <PackageVersion Include="Avalonia.Browser" Version="11.3.9" />
-        <PackageVersion Include="Avalonia.Android" Version="11.3.9" />
-
-        <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-
-        <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.15" />
-    </ItemGroup>
+  <!-- https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Avalonia packages -->
+    <!-- Important: keep version in sync! -->
+    <PackageVersion Include="Avalonia" Version="11.3.9" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.9" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.9" />
+    <PackageVersion Include="Avalonia.Diagnostics" Version="11.3.9" />
+    <PackageVersion Include="Avalonia.Desktop" Version="11.3.9" />
+    <PackageVersion Include="Avalonia.iOS" Version="11.3.9" />
+    <PackageVersion Include="Avalonia.Browser" Version="11.3.9" />
+    <PackageVersion Include="Avalonia.Android" Version="11.3.9" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Web.WebView2" Version="1.0.3650.58" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <PackageVersion Include="Xamarin.AndroidX.Media3.ExoPlayer" Version="1.8.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.15" />
+  </ItemGroup>
 </Project>

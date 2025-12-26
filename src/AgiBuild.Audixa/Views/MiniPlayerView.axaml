@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:AgiBuild.Audixa.ViewModels"
+             xmlns:conv="using:AgiBuild.Audixa.Converters"
+             mc:Ignorable="d"
+             x:Class="AgiBuild.Audixa.Views.MiniPlayerView"
+             x:DataType="vm:MiniPlayerViewModel">
+  <UserControl.Resources>
+    <conv:IsNotNullConverter x:Key="IsNotNullConverter" />
+    <conv:BoolToPlayPauseTextConverter x:Key="BoolToPlayPauseTextConverter" />
+  </UserControl.Resources>
+
+  <Border Background="#240524"
+          BorderBrush="#33ff00ff"
+          BorderThickness="0,1,0,0"
+          Padding="14"
+          IsVisible="{Binding State.CurrentItem, Converter={StaticResource IsNotNullConverter}}">
+    <DockPanel LastChildFill="True">
+      <TextBlock DockPanel.Dock="Left"
+                 Text="▶"
+                 FontSize="18"
+                 Margin="0,0,12,0"
+                 VerticalAlignment="Center"
+                 Foreground="#ff00ff" />
+
+      <StackPanel DockPanel.Dock="Left" Spacing="2" Margin="0,0,12,0">
+        <TextBlock Text="{Binding State.CurrentItem.DisplayName}" FontWeight="SemiBold" Foreground="White"/>
+        <TextBlock Text="{Binding State.Position, StringFormat={}{0:mm\\:ss}}"
+                   Opacity="0.8"
+                   Foreground="#ff00ff"
+                   FontSize="12" />
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+        <Button Content="{Binding State.IsPlaying, Converter={StaticResource BoolToPlayPauseTextConverter}}"
+                Command="{Binding TogglePlayPauseCommand}"
+                Padding="10,6"/>
+      </StackPanel>
+    </DockPanel>
+  </Border>
+</UserControl>

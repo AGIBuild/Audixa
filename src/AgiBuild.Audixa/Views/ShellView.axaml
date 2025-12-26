@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:AgiBuild.Audixa.ViewModels"
+             xmlns:views="using:AgiBuild.Audixa.Views"
+             mc:Ignorable="d"
+             x:Class="AgiBuild.Audixa.Views.ShellView"
+             x:DataType="vm:ShellViewModel">
+  <Grid RowDefinitions="Auto,*">
+    <!-- Top navigation (prototype-aligned) -->
+    <Border Background="#1a1625" BorderBrush="#3a2d4a" BorderThickness="0,0,0,1" Padding="16,10">
+      <DockPanel LastChildFill="True">
+        <TextBlock DockPanel.Dock="Left"
+                   Text="Audixa"
+                   FontSize="22"
+                   FontWeight="Bold"
+                   Foreground="#ff00ff"
+                   VerticalAlignment="Center" />
+
+        <ItemsControl DockPanel.Dock="Right" ItemsSource="{Binding Pages}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="14"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ShellViewModel+NavigationItem">
+              <Button Content="{Binding Title}"
+                      Command="{Binding NavigateCommand}"
+                      CommandParameter="{Binding ViewModel}"
+                      Background="Transparent"
+                      BorderThickness="0"
+                      Foreground="#e0e0e0"
+                      Padding="10,6"/>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </DockPanel>
+    </Border>
+
+    <!-- Content + overlays -->
+    <Grid Grid.Row="1">
+      <Grid RowDefinitions="*,Auto">
+        <ContentControl Content="{Binding CurrentPage}" />
+
+        <!-- Mini player (placeholder, always visible for now) -->
+        <views:MiniPlayerView Grid.Row="1" DataContext="{Binding MiniPlayer}" />
+      </Grid>
+
+      <!-- Notifications overlay -->
+      <views:NotificationHostView DataContext="{Binding Notifications}" />
+    </Grid>
+  </Grid>
+</UserControl>

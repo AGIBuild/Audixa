@@ -1,0 +1,88 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:AgiBuild.Audixa.ViewModels"
+             mc:Ignorable="d"
+             x:Class="AgiBuild.Audixa.Views.LearningView"
+             x:DataType="vm:LearningViewModel">
+  <ScrollViewer>
+    <Border Padding="24">
+      <StackPanel Spacing="18">
+        <TextBlock Text="Learning" FontSize="22" FontWeight="SemiBold"/>
+
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <Border Background="#1a1625" CornerRadius="12" Padding="16" Width="220">
+            <StackPanel>
+              <TextBlock Text="{Binding SavedSentenceCount}" FontSize="28" FontWeight="Bold" Foreground="#ff00ff"/>
+              <TextBlock Text="Saved sentences" Opacity="0.7"/>
+            </StackPanel>
+          </Border>
+          <Border Background="#1a1625" CornerRadius="12" Padding="16" Width="220">
+            <StackPanel>
+              <TextBlock Text="{Binding VocabularyCount}" FontSize="28" FontWeight="Bold" Foreground="#ff00ff"/>
+              <TextBlock Text="Vocabulary items" Opacity="0.7"/>
+            </StackPanel>
+          </Border>
+          <Border Background="#1a1625" CornerRadius="12" Padding="16" Width="220">
+            <StackPanel>
+              <TextBlock Text="12h" FontSize="28" FontWeight="Bold" Foreground="#ff00ff"/>
+              <TextBlock Text="Weekly time" Opacity="0.7"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBox Width="240" Text="{Binding NewWord}" Watermark="Add a word..." />
+          <Button Content="Add" Command="{Binding AddWordCommand}" Padding="12,6"/>
+          <Button Content="Refresh" Command="{Binding RefreshCommand}" Padding="12,6"/>
+        </StackPanel>
+
+        <TextBlock Text="Recent saved sentence" FontSize="16" FontWeight="SemiBold" Margin="0,10,0,0"/>
+        <Border Background="#1a1625" CornerRadius="12" Padding="16">
+          <ItemsControl ItemsSource="{Binding RecentSavedSentences}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <StackPanel>
+                  <TextBlock Text="{Binding PrimaryText}" FontSize="16"/>
+                  <TextBlock Text="{Binding SecondaryText}" Opacity="0.8"/>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="16" Margin="0,12,0,0">
+          <StackPanel Grid.Column="0" Spacing="10">
+            <TextBlock Text="Saved Sentences" FontSize="16" FontWeight="SemiBold"/>
+            <Border Background="#1a1625" CornerRadius="12" Padding="12">
+              <ItemsControl ItemsSource="{Binding SavedSentences}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Margin="0,0,0,10">
+                      <TextBlock Text="{Binding PrimaryText}" />
+                      <TextBlock Text="{Binding SecondaryText}" Opacity="0.75" FontSize="12"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Spacing="10">
+            <TextBlock Text="Vocabulary" FontSize="16" FontWeight="SemiBold"/>
+            <Border Background="#1a1625" CornerRadius="12" Padding="12">
+              <ItemsControl ItemsSource="{Binding VocabularyItems}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Word}" Margin="0,0,0,8"/>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+          </StackPanel>
+        </Grid>
+      </StackPanel>
+    </Border>
+  </ScrollViewer>
+</UserControl>

@@ -8,5 +8,5 @@
         x:Class="AgiBuild.Audixa.Views.MainWindow"
         Icon="/Assets/avalonia-logo.ico"
         Title="AgiBuild.Audixa">
-        <views:MainView />
+        <views:ShellView />
 </Window>
