@@ -11,10 +11,12 @@ namespace AgiBuild.Audixa.Stores.Sqlite;
 public sealed class SqliteLearningStore : ILearningStore
 {
     private readonly IAudixaDatabase _db;
+    private readonly TimeProvider _timeProvider;
 
-    public SqliteLearningStore(IAudixaDatabase db)
+    public SqliteLearningStore(IAudixaDatabase db, TimeProvider timeProvider)
     {
         _db = db;
+        _timeProvider = timeProvider;
     }
 
     public async Task AddSavedSentenceAsync(SavedSentence sentence)
@@ -49,7 +51,9 @@ ON CONFLICT(id) DO UPDATE SET
         }
 
         await WriteOutbox(conn, tx, "saved_sentence", sentence.Id, "upsert",
-            JsonSerializer.Serialize(new { sentence.Id, sentence.MediaItemId })).ConfigureAwait(false);
+                JsonSerializer.Serialize(new { sentence.Id, sentence.MediaItemId }),
+                _timeProvider.GetUtcNow())
+            .ConfigureAwait(false);
 
         tx.Commit();
     }
@@ -82,7 +86,9 @@ ON CONFLICT(id) DO UPDATE SET
         }
 
         await WriteOutbox(conn, tx, "vocabulary_item", item.Id, "upsert",
-            JsonSerializer.Serialize(new { item.Id, item.Word })).ConfigureAwait(false);
+                JsonSerializer.Serialize(new { item.Id, item.Word }),
+                _timeProvider.GetUtcNow())
+            .ConfigureAwait(false);
 
         tx.Commit();
     }
@@ -165,7 +171,7 @@ LIMIT $limit;
         return list;
     }
 
-    private static async Task WriteOutbox(SqliteConnection conn, SqliteTransaction tx, string entityType, string entityId, string op, string? payloadJson)
+    private static async Task WriteOutbox(SqliteConnection conn, SqliteTransaction tx, string entityType, string entityId, string op, string? payloadJson, DateTimeOffset createdAtUtc)
     {
         await using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;
@@ -178,7 +184,7 @@ VALUES ($id, $type, $eid, $op, $payload, $created, NULL);
         cmd.Parameters.AddWithValue("$eid", entityId);
         cmd.Parameters.AddWithValue("$op", op);
         cmd.Parameters.AddWithValue("$payload", (object?)payloadJson ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$created", DateTimeOffset.UtcNow.UtcDateTime.ToString("O"));
+        cmd.Parameters.AddWithValue("$created", createdAtUtc.UtcDateTime.ToString("O"));
         await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
 }

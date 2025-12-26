@@ -59,7 +59,7 @@ public sealed class SubtitleService : ISubtitleService
             while (i < lines.Count && !string.IsNullOrWhiteSpace(lines[i]))
             {
                 if (sb.Length > 0)
-                    sb.AppendLine();
+                    sb.Append('\n');
                 sb.Append(lines[i]);
                 i++;
             }
@@ -110,7 +110,7 @@ public sealed class SubtitleService : ISubtitleService
             while (i < lines.Count && !string.IsNullOrWhiteSpace(lines[i]))
             {
                 if (sb.Length > 0)
-                    sb.AppendLine();
+                    sb.Append('\n');
                 sb.Append(lines[i]);
                 i++;
             }

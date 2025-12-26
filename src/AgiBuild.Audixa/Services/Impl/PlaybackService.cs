@@ -11,6 +11,7 @@ public sealed class PlaybackService : IPlaybackService
     private readonly INotificationService _notifications;
     private readonly ILibraryStore _libraryStore;
     private readonly ILogger<PlaybackService> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public PlaybackState State { get; } = new();
 
@@ -20,12 +21,14 @@ public sealed class PlaybackService : IPlaybackService
         IMediaPlayerAdapter adapter,
         INotificationService notifications,
         ILibraryStore libraryStore,
-        ILogger<PlaybackService> logger)
+        ILogger<PlaybackService> logger,
+        TimeProvider timeProvider)
     {
         _adapter = adapter;
         _notifications = notifications;
         _libraryStore = libraryStore;
         _logger = logger;
+        _timeProvider = timeProvider;
 
         _adapter.PositionChanged += (_, pos) => State.Position = pos;
         _adapter.DurationChanged += (_, dur) => State.Duration = dur;
@@ -57,7 +60,7 @@ public sealed class PlaybackService : IPlaybackService
 
         if (State.CurrentItem is not null)
         {
-            _ = _libraryStore.SaveProgressAsync(State.CurrentItem.Id, State.Position, DateTimeOffset.UtcNow);
+            _ = _libraryStore.SaveProgressAsync(State.CurrentItem.Id, State.Position, _timeProvider.GetUtcNow());
             _logger.LogInformation("Saved progress: {MediaId} {PositionMs}ms", State.CurrentItem.Id, (long)State.Position.TotalMilliseconds);
         }
     }
@@ -92,7 +95,7 @@ public sealed class PlaybackService : IPlaybackService
         _adapter.Open(input);
         MediaOpened?.Invoke(this, item);
 
-        _ = _libraryStore.UpsertMediaAsync(item, DateTimeOffset.UtcNow);
+        _ = _libraryStore.UpsertMediaAsync(item, _timeProvider.GetUtcNow());
         _logger.LogInformation("Opened media: {MediaId} {Name} ({SourceKind})", item.Id, item.DisplayName, item.SourceKind);
     }
 }

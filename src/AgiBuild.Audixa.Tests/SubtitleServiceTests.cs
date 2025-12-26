@@ -54,6 +54,42 @@ World
         Assert.Equal("World", cues[1].Text);
         Assert.Equal(1000, (int)cues[0].Start.TotalMilliseconds);
     }
+
+    [Fact]
+    public async Task ParseSrt_MultilineText_IsPreserved()
+    {
+        var srt = """
+1
+00:00:01,000 --> 00:00:02,500
+Hello
+World
+
+""";
+
+        var svc = new SubtitleService();
+        await using var ms = new MemoryStream(Encoding.UTF8.GetBytes(srt));
+        var cues = await svc.ParseAsync(ms, SubtitleFormat.Srt);
+
+        Assert.Single(cues);
+        Assert.Equal("Hello\nWorld", cues[0].Text);
+    }
+
+    [Fact]
+    public async Task ParseVtt_WithoutHours_Works()
+    {
+        var vtt = """
+00:01.000 --> 00:02.500
+Hello
+""";
+
+        var svc = new SubtitleService();
+        await using var ms = new MemoryStream(Encoding.UTF8.GetBytes(vtt));
+        var cues = await svc.ParseAsync(ms, SubtitleFormat.Vtt);
+
+        Assert.Single(cues);
+        Assert.Equal(1000, (int)cues[0].Start.TotalMilliseconds);
+        Assert.Equal(2500, (int)cues[0].End.TotalMilliseconds);
+    }
 }
 
 

@@ -13,13 +13,17 @@ public partial class LearningViewModel : ViewModelBase
 {
     private readonly ILearningStore _learningStore;
     private readonly INotificationService _notifications;
+    private readonly TimeProvider _timeProvider;
 
-    public LearningViewModel(ILearningStore learningStore, INotificationService notifications)
+    public LearningViewModel(ILearningStore learningStore, INotificationService notifications, TimeProvider timeProvider)
     {
         _learningStore = learningStore;
         _notifications = notifications;
-        _ = RefreshAsync();
+        _timeProvider = timeProvider;
+        Initialization = RefreshAsync();
     }
+
+    public Task Initialization { get; }
 
     [ObservableProperty]
     private string _title = "Learning";
@@ -74,7 +78,7 @@ public partial class LearningViewModel : ViewModelBase
             Word: word,
             Context: null,
             SourceMediaItemId: null,
-            UpdatedAtUtc: DateTimeOffset.UtcNow,
+            UpdatedAtUtc: _timeProvider.GetUtcNow(),
             Deleted: false);
 
         await _learningStore.AddVocabularyAsync(item);

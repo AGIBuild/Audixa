@@ -22,10 +22,13 @@ internal static class PlatformModuleDiscovery
                     return Array.Empty<Type>();
                 }
             })
-            .FirstOrDefault(t =>
+            .Where(t =>
                 typeof(IAudixaPlatformModule).IsAssignableFrom(t) &&
                 t is { IsInterface: false, IsAbstract: false } &&
-                t.GetConstructor(Type.EmptyTypes) is not null);
+                t.GetConstructor(Type.EmptyTypes) is not null)
+            // Keep deterministic selection to make behavior testable.
+            .OrderBy(t => t.FullName, StringComparer.Ordinal)
+            .FirstOrDefault();
 
         return moduleType is null ? null : (IAudixaPlatformModule?)Activator.CreateInstance(moduleType);
     }

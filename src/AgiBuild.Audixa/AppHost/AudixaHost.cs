@@ -21,6 +21,8 @@ public static class AudixaHost
     {
         var services = new ServiceCollection();
 
+        services.AddSingleton<TimeProvider>(TimeProvider.System);
+
         // Logging (no PII). For now, no providers are configured; it can be extended later.
         services.AddLogging(b => b.SetMinimumLevel(LogLevel.Information));
 

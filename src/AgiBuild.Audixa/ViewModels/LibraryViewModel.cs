@@ -21,6 +21,7 @@ public partial class LibraryViewModel : ViewModelBase
     private readonly IPlaybackService _playback;
     private readonly ISmbProfileStore _smbProfiles;
     private readonly ILogger<LibraryViewModel> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public LibraryViewModel(
         ILibraryStore libraryStore,
@@ -28,7 +29,8 @@ public partial class LibraryViewModel : ViewModelBase
         ISourceProvider localSource,
         IPlaybackService playback,
         ISmbProfileStore smbProfiles,
-        ILogger<LibraryViewModel> logger)
+        ILogger<LibraryViewModel> logger,
+        TimeProvider timeProvider)
     {
         _libraryStore = libraryStore;
         _notifications = notifications;
@@ -36,9 +38,12 @@ public partial class LibraryViewModel : ViewModelBase
         _playback = playback;
         _smbProfiles = smbProfiles;
         _logger = logger;
+        _timeProvider = timeProvider;
 
-        _ = RefreshSmbProfilesAsync();
+        Initialization = RefreshSmbProfilesAsync();
     }
+
+    public Task Initialization { get; }
 
     [ObservableProperty]
     private string _title = "Library";
@@ -90,7 +95,7 @@ public partial class LibraryViewModel : ViewModelBase
             Id: Guid.NewGuid().ToString("N"),
             Name: root,
             RootPath: root,
-            UpdatedAtUtc: DateTimeOffset.UtcNow,
+            UpdatedAtUtc: _timeProvider.GetUtcNow(),
             Deleted: false);
 
         await _smbProfiles.UpsertAsync(profile);

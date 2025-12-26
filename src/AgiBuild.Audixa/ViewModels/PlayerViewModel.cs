@@ -24,6 +24,7 @@ public partial class PlayerViewModel : ViewModelBase
     private readonly ILocalSubtitlePicker _subtitlePicker;
     private readonly ILearningStore _learningStore;
     private readonly INotificationService _notifications;
+    private readonly TimeProvider _timeProvider;
 
     private IReadOnlyList<SubtitleCue> _primary = Array.Empty<SubtitleCue>();
     private IReadOnlyList<SubtitleCue> _secondary = Array.Empty<SubtitleCue>();
@@ -34,7 +35,8 @@ public partial class PlayerViewModel : ViewModelBase
         ISubtitleService subtitles,
         ILocalSubtitlePicker subtitlePicker,
         ILearningStore learningStore,
-        INotificationService notifications)
+        INotificationService notifications,
+        TimeProvider timeProvider)
     {
         _playback = playback;
         _videoSurfaceFactory = videoSurfaceFactory;
@@ -42,6 +44,7 @@ public partial class PlayerViewModel : ViewModelBase
         _subtitlePicker = subtitlePicker;
         _learningStore = learningStore;
         _notifications = notifications;
+        _timeProvider = timeProvider;
 
         VideoSurface = _videoSurfaceFactory.Create();
 
@@ -154,7 +157,7 @@ public partial class PlayerViewModel : ViewModelBase
             End: row.End + offset,
             PrimaryText: row.PrimaryText,
             SecondaryText: row.SecondaryText,
-            UpdatedAtUtc: DateTimeOffset.UtcNow,
+            UpdatedAtUtc: _timeProvider.GetUtcNow(),
             Deleted: false);
 
         await _learningStore.AddSavedSentenceAsync(sentence);

@@ -10,10 +10,12 @@ namespace AgiBuild.Audixa.Stores.Sqlite;
 public sealed class SqliteLibraryStore : ILibraryStore
 {
     private readonly IAudixaDatabase _db;
+    private readonly TimeProvider _timeProvider;
 
-    public SqliteLibraryStore(IAudixaDatabase db)
+    public SqliteLibraryStore(IAudixaDatabase db, TimeProvider timeProvider)
     {
         _db = db;
+        _timeProvider = timeProvider;
     }
 
     public async Task UpsertMediaAsync(MediaItem item, DateTimeOffset playedAtUtc)
@@ -40,7 +42,7 @@ ON CONFLICT(id) DO UPDATE SET
         cmd.Parameters.AddWithValue("$loc", item.SourceLocator);
         cmd.Parameters.AddWithValue("$dur", item.Duration is null ? DBNull.Value : (long)item.Duration.Value.TotalMilliseconds);
         cmd.Parameters.AddWithValue("$played", playedAtUtc.UtcDateTime.ToString("O"));
-        cmd.Parameters.AddWithValue("$updated", DateTimeOffset.UtcNow.UtcDateTime.ToString("O"));
+        cmd.Parameters.AddWithValue("$updated", _timeProvider.GetUtcNow().UtcDateTime.ToString("O"));
 
         await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
