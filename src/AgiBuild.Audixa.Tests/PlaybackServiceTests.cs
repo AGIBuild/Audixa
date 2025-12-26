@@ -95,6 +95,39 @@ public sealed class PlaybackServiceTests
         Assert.Equal("boom", notifications.LastTopAlert);
     }
 
+    [Fact]
+    public void WhilePlaying_PositionUpdates_AutoSavesThrottled()
+    {
+        var adapter = new FakeAdapter();
+        var notifications = new FakeNotifications();
+        var store = new FakeLibraryStore();
+        var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
+
+        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time);
+        var item = new MediaItem("m1", "test.mp4", MediaSourceKind.Local, "file:///test.mp4", null);
+        svc.Open(item, new DirectUriPlaybackInput(new Uri("file:///test.mp4")));
+        svc.Play();
+
+        // initial updates should not autosave until min interval elapses
+        adapter.RaisePosition(TimeSpan.FromSeconds(1));
+        adapter.RaisePosition(TimeSpan.FromSeconds(2));
+        Assert.Equal(0, store.SaveProgressCalls);
+
+        // after 10s, first autosave
+        time.SetUtcNow(time.GetUtcNow().AddSeconds(10));
+        adapter.RaisePosition(TimeSpan.FromSeconds(3));
+        Assert.Equal(1, store.SaveProgressCalls);
+
+        // within interval, no additional save
+        adapter.RaisePosition(TimeSpan.FromSeconds(5));
+        Assert.Equal(1, store.SaveProgressCalls);
+
+        // after another interval, second autosave
+        time.SetUtcNow(time.GetUtcNow().AddSeconds(10));
+        adapter.RaisePosition(TimeSpan.FromSeconds(6));
+        Assert.Equal(2, store.SaveProgressCalls);
+    }
+
     private sealed class FakeAdapter : IMediaPlayerAdapter
     {
         public int PlayCalls { get; private set; }

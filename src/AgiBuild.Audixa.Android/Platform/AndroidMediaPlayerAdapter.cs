@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using global::Android.Views;
 using AndroidX.Media3.Common;
 using AndroidX.Media3.ExoPlayer;
@@ -13,6 +14,8 @@ public sealed class AndroidMediaPlayerAdapter : IMediaPlayerAdapter
     private IExoPlayer? _player;
     private Surface? _surface;
     private PlaybackInput? _currentInput;
+    private Timer? _positionTimer;
+    private long _lastPositionMs = -1;
 
     public Control View { get; } = new Border
     {
@@ -41,6 +44,7 @@ public sealed class AndroidMediaPlayerAdapter : IMediaPlayerAdapter
 
         try
         {
+            StopTimer();
             EnsureSurface();
 
             var activity = AndroidVideoHost.Activity;
@@ -91,6 +95,7 @@ public sealed class AndroidMediaPlayerAdapter : IMediaPlayerAdapter
                 return;
 
             _player.PlayWhenReady = true;
+            StartTimer();
         }
         catch (Exception ex)
         {
@@ -106,6 +111,7 @@ public sealed class AndroidMediaPlayerAdapter : IMediaPlayerAdapter
                 return;
 
             _player.PlayWhenReady = false;
+            StopTimer();
         }
         catch
         {
@@ -196,6 +202,7 @@ public sealed class AndroidMediaPlayerAdapter : IMediaPlayerAdapter
             }
             else if (playbackState == 4)
             {
+                _owner.StopTimer();
                 var durationMs = _owner._player.Duration;
                 if (durationMs > 0)
                     _owner.PositionChanged?.Invoke(_owner, TimeSpan.FromMilliseconds(durationMs));
@@ -208,6 +215,54 @@ public sealed class AndroidMediaPlayerAdapter : IMediaPlayerAdapter
         }
 
         // Other listener callbacks are not needed for MVP.
+    }
+
+    private void StartTimer()
+    {
+        if (_positionTimer is not null)
+            return;
+
+        _lastPositionMs = -1;
+        _positionTimer = new Timer(_ =>
+        {
+            try
+            {
+                var p = _player;
+                if (p is null)
+                    return;
+                if (!p.IsPlaying)
+                    return;
+
+                var ms = p.CurrentPosition;
+                if (ms < 0)
+                    return;
+                if (ms == Interlocked.Read(ref _lastPositionMs))
+                    return;
+
+                Interlocked.Exchange(ref _lastPositionMs, ms);
+                PositionChanged?.Invoke(this, TimeSpan.FromMilliseconds(ms));
+            }
+            catch
+            {
+                // ignore
+            }
+        }, null, dueTime: 0, period: 250);
+    }
+
+    private void StopTimer()
+    {
+        try
+        {
+            _positionTimer?.Dispose();
+        }
+        catch
+        {
+            // ignore
+        }
+        finally
+        {
+            _positionTimer = null;
+        }
     }
 }
 

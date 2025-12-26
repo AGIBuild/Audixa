@@ -12,7 +12,7 @@
 
 ## 3. Playback (MVP, platform-native adapters)
 - [x] 3.1 Android adapter: ExoPlayer integration + surface hosting + time events
-- [ ] 3.2 iOS adapter: AVPlayer integration + surface hosting + time events
+- [x] 3.2 iOS adapter: AVPlayer integration + surface hosting + time events
 - [x] 3.3 Desktop adapter spike: evaluate approaches and pick one
   - [x] A) WebView2 + in-app HTTP range streaming + JS bridge for currentTime (chosen)
   - [x] B) MediaFoundation/DirectShow native pipeline hosted via `NativeControlHost` (considered, not chosen)

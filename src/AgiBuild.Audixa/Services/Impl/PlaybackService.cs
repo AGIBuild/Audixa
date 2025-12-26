@@ -12,6 +12,11 @@ public sealed class PlaybackService : IPlaybackService
     private readonly ILibraryStore _libraryStore;
     private readonly ILogger<PlaybackService> _logger;
     private readonly TimeProvider _timeProvider;
+    private DateTimeOffset _lastAutoSavedAtUtc = DateTimeOffset.MinValue;
+    private TimeSpan _lastAutoSavedPosition = TimeSpan.Zero;
+
+    private static readonly TimeSpan AutoSaveMinInterval = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan AutoSaveMinDelta = TimeSpan.FromSeconds(1);
 
     public PlaybackState State { get; } = new();
 
@@ -30,7 +35,26 @@ public sealed class PlaybackService : IPlaybackService
         _logger = logger;
         _timeProvider = timeProvider;
 
-        _adapter.PositionChanged += (_, pos) => State.Position = pos;
+        _adapter.PositionChanged += (_, pos) =>
+        {
+            State.Position = pos;
+
+            if (State.CurrentItem is null)
+                return;
+            if (!State.IsPlaying)
+                return;
+
+            // Throttle progress persistence while playing.
+            var now = _timeProvider.GetUtcNow();
+            if (now - _lastAutoSavedAtUtc < AutoSaveMinInterval)
+                return;
+            if (pos - _lastAutoSavedPosition < AutoSaveMinDelta)
+                return;
+
+            _lastAutoSavedAtUtc = now;
+            _lastAutoSavedPosition = pos;
+            _ = _libraryStore.SaveProgressAsync(State.CurrentItem.Id, pos, now);
+        };
         _adapter.DurationChanged += (_, dur) => State.Duration = dur;
         _adapter.ErrorRaised += (_, err) =>
         {
@@ -49,6 +73,9 @@ public sealed class PlaybackService : IPlaybackService
         }
 
         State.ErrorMessage = null;
+        // Start autosave window from the moment playback starts.
+        _lastAutoSavedAtUtc = _timeProvider.GetUtcNow();
+        _lastAutoSavedPosition = State.Position;
         _adapter.Play();
         State.IsPlaying = true;
     }
@@ -91,6 +118,8 @@ public sealed class PlaybackService : IPlaybackService
         State.ErrorMessage = null;
         State.IsPlaying = false;
         State.Speed = 1.0;
+        _lastAutoSavedAtUtc = _timeProvider.GetUtcNow();
+        _lastAutoSavedPosition = TimeSpan.Zero;
 
         _adapter.Open(input);
         MediaOpened?.Invoke(this, item);
