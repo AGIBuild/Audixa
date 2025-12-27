@@ -186,6 +186,63 @@ public sealed class LibraryViewModelTests
     }
 
     [Fact]
+    public async Task OpenRecent_SmbWithProfileId_LooksUpProfile_AndOpensPlaybackUri()
+    {
+        var playback = new FakePlayback();
+        var notifications = new FakeNotifications();
+        var localSource = new FakeSourceProvider(null);
+
+        var profile = new SmbProfile(
+            Id: "p1",
+            Name: "p1",
+            RootPath: "smb://server/share",
+            UpdatedAtUtc: DateTimeOffset.UtcNow,
+            Deleted: false,
+            Host: "server",
+            Share: "share",
+            Username: "u",
+            Domain: "d",
+            SecretId: "sid");
+
+        var smbStore = new FakeSmbProfileStore(new[] { profile });
+        var smbBrowser = new FakeSmbBrowser();
+        var smbPlayback = new FakeSmbPlaybackLocator();
+        var secrets = new FakeSecureSecretStore();
+        var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
+
+        var vm = new LibraryViewModel(
+            libraryStore: new FakeLibraryStore(),
+            notifications: notifications,
+            localSource: localSource,
+            playback: playback,
+            smbProfiles: smbStore,
+            smbBrowser: smbBrowser,
+            smbPlayback: smbPlayback,
+            secrets: secrets,
+            logger: NullLogger<LibraryViewModel>.Instance,
+            timeProvider: time);
+
+        await vm.Initialization;
+
+        var recent = new MediaItem(
+            Id: "m1",
+            DisplayName: "a.mp4",
+            SourceKind: MediaSourceKind.Smb,
+            SourceLocator: "smb://server/share/folder/a.mp4?profileId=p1",
+            Duration: null);
+
+        vm.OpenRecentCommand.Execute(recent);
+
+        for (var i = 0; i < 50 && playback.OpenCalls == 0; i++)
+            await Task.Delay(5);
+
+        Assert.Equal(1, playback.OpenCalls);
+        Assert.Equal("Opened", notifications.LastToast?.Title);
+        Assert.StartsWith("smb://server/share/", ((DirectUriPlaybackInput)playback.LastInput!).Uri.ToString());
+        Assert.DoesNotContain("profileId=", ((DirectUriPlaybackInput)playback.LastInput!).Uri.ToString());
+    }
+
+    [Fact]
     public async Task PlaybackMediaOpened_RefreshesRecents()
     {
         var playback = new FakePlayback();
@@ -303,6 +360,8 @@ public sealed class LibraryViewModelTests
         public FakeSmbProfileStore(IReadOnlyList<SmbProfile> profiles) => _profiles = profiles;
 
         public Task<IReadOnlyList<SmbProfile>> GetAllAsync() => Task.FromResult(_profiles);
+        public Task<SmbProfile?> TryGetByIdAsync(string id) =>
+            Task.FromResult(_profiles.FirstOrDefault(p => p.Id == id));
         public Task UpsertAsync(SmbProfile profile) => Task.CompletedTask;
     }
 

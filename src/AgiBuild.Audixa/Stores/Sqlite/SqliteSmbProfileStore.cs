@@ -47,6 +47,36 @@ ORDER BY updated_at_utc DESC;
         return list;
     }
 
+    public async Task<SmbProfile?> TryGetByIdAsync(string id)
+    {
+        await using var conn = _db.OpenConnection();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+SELECT id, name, root_path, updated_at_utc, deleted,
+       host, share, username, domain, secret_id
+FROM smb_profile
+WHERE id=$id
+LIMIT 1;
+""";
+        cmd.Parameters.AddWithValue("$id", id);
+
+        await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+        if (!await reader.ReadAsync().ConfigureAwait(false))
+            return null;
+
+        return new SmbProfile(
+            Id: reader.GetString(0),
+            Name: reader.GetString(1),
+            RootPath: reader.GetString(2),
+            UpdatedAtUtc: DateTimeOffset.Parse(reader.GetString(3)),
+            Deleted: reader.GetInt64(4) != 0,
+            Host: reader.IsDBNull(5) ? null : reader.GetString(5),
+            Share: reader.IsDBNull(6) ? null : reader.GetString(6),
+            Username: reader.IsDBNull(7) ? null : reader.GetString(7),
+            Domain: reader.IsDBNull(8) ? null : reader.GetString(8),
+            SecretId: reader.IsDBNull(9) ? null : reader.GetString(9));
+    }
+
     public async Task UpsertAsync(SmbProfile profile)
     {
         await using var conn = _db.OpenConnection();

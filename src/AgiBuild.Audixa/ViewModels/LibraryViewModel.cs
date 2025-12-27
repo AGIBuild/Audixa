@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
 using AgiBuild.Audixa.Services;
 using AgiBuild.Audixa.Stores;
 using AgiBuild.Audixa.Sources;
@@ -122,19 +123,76 @@ public partial class LibraryViewModel : ViewModelBase
     {
         try
         {
-            var uri = TryCreateUri(item);
-            if (uri is null)
-            {
-                _notifications.ShowToast("Not supported", "Cannot open this item yet.");
-                return;
-            }
-
-            _playback.Open(item, new DirectUriPlaybackInput(uri));
-            _notifications.ShowToast("Opened", item.DisplayName);
+            _ = OpenRecentAsync(item);
         }
         catch (Exception ex)
         {
             _notifications.ShowTopAlert("Open failed: " + ex.Message);
+        }
+    }
+
+    private async Task OpenRecentAsync(MediaItem item)
+    {
+        try
+        {
+            if (item.SourceKind == MediaSourceKind.Smb)
+            {
+                if (!Uri.TryCreate(item.SourceLocator, UriKind.Absolute, out var smbUri) ||
+                    !string.Equals(smbUri.Scheme, "smb", StringComparison.OrdinalIgnoreCase))
+                {
+                    _notifications.ShowToast("Not supported", "Cannot open this SMB item.");
+                    return;
+                }
+
+                var host = smbUri.Host ?? string.Empty;
+                var seg = smbUri.AbsolutePath.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+                if (seg.Length < 1)
+                {
+                    _notifications.ShowToast("Not supported", "Invalid SMB locator.");
+                    return;
+                }
+
+                var share = seg[0];
+                var rel = string.Join("/", seg.Skip(1)).Replace('/', '\\');
+
+                var q = ParseQuery(smbUri.Query);
+                q.TryGetValue("profileId", out var profileId);
+
+                if (string.IsNullOrWhiteSpace(profileId))
+                {
+                    _notifications.ShowToast("Not supported", "Missing SMB profile.");
+                    return;
+                }
+
+                var profile = await _smbProfiles.TryGetByIdAsync(profileId).ConfigureAwait(true);
+                if (profile is null || profile.Deleted)
+                {
+                    _notifications.ShowToast("Not supported", "SMB profile not found.");
+                    return;
+                }
+
+                var playbackUri = _smbPlayback.CreatePlaybackUri(host, share, rel, profile);
+                _playback.Open(item, new DirectUriPlaybackInput(playbackUri));
+                _notifications.ShowToast("Opened", item.DisplayName);
+                return;
+            }
+
+            // Local media
+            if (Uri.TryCreate(item.SourceLocator, UriKind.Absolute, out var abs))
+            {
+                _playback.Open(item, new DirectUriPlaybackInput(abs));
+                _notifications.ShowToast("Opened", item.DisplayName);
+                return;
+            }
+
+            // UNC / file path
+            var fileUri = new Uri("file:" + item.SourceLocator.Replace("\\", "/"));
+            _playback.Open(item, new DirectUriPlaybackInput(fileUri));
+            _notifications.ShowToast("Opened", item.DisplayName);
+        }
+        catch
+        {
+            _notifications.ShowTopAlert("Open failed.");
         }
     }
 
@@ -157,48 +215,54 @@ public partial class LibraryViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(root))
             return;
 
-        if (!SmbPath.TryParseRoot(root, out var host, out var share))
+        var password = NewSmbPassword;
+        try
         {
-            _notifications.ShowTopAlert("Invalid SMB path. Use \\\\host\\share or smb://host/share");
-            return;
-        }
-
-        var username = string.IsNullOrWhiteSpace(NewSmbUsername) ? null : NewSmbUsername.Trim();
-        var domain = string.IsNullOrWhiteSpace(NewSmbDomain) ? null : NewSmbDomain.Trim();
-
-        string? secretId = null;
-        if (RememberSmbPassword && !string.IsNullOrWhiteSpace(NewSmbPassword))
-        {
-            try
+            if (!SmbPath.TryParseRoot(root, out var host, out var share))
             {
-                var purpose = $"smb-password:{host}/{share}:{username ?? "(anonymous)"}";
-                secretId = await _secrets.UpsertAsync(purpose, NewSmbPassword.Trim());
-            }
-            catch (Exception ex)
-            {
-                _notifications.ShowTopAlert("Remember password failed: " + ex.Message);
+                _notifications.ShowTopAlert("Invalid SMB path. Use \\\\host\\share or smb://host/share");
                 return;
             }
+
+            var username = string.IsNullOrWhiteSpace(NewSmbUsername) ? null : NewSmbUsername.Trim();
+            var domain = string.IsNullOrWhiteSpace(NewSmbDomain) ? null : NewSmbDomain.Trim();
+
+            string? secretId = null;
+            if (RememberSmbPassword && !string.IsNullOrWhiteSpace(password))
+            {
+                try
+                {
+                    var purpose = $"smb-password:{host}/{share}:{username ?? "(anonymous)"}";
+                    secretId = await _secrets.UpsertAsync(purpose, password.Trim());
+                }
+                catch (Exception ex)
+                {
+                    _notifications.ShowTopAlert("Remember password failed: " + ex.Message);
+                    return;
+                }
+            }
+
+            var profile = new SmbProfile(
+                Id: Guid.NewGuid().ToString("N"),
+                Name: $"{host}/{share}",
+                RootPath: $"smb://{host}/{share}",
+                UpdatedAtUtc: _timeProvider.GetUtcNow(),
+                Deleted: false,
+                Host: host,
+                Share: share,
+                Username: username,
+                Domain: domain,
+                SecretId: secretId);
+
+            await _smbProfiles.UpsertAsync(profile);
+            _notifications.ShowToast("Saved", "SMB profile saved.");
+            await RefreshSmbProfilesAsync();
         }
-
-        var profile = new SmbProfile(
-            Id: Guid.NewGuid().ToString("N"),
-            Name: $"{host}/{share}",
-            RootPath: $"smb://{host}/{share}",
-            UpdatedAtUtc: _timeProvider.GetUtcNow(),
-            Deleted: false,
-            Host: host,
-            Share: share,
-            Username: username,
-            Domain: domain,
-            SecretId: secretId);
-
-        await _smbProfiles.UpsertAsync(profile);
-        _notifications.ShowToast("Saved", "SMB profile saved.");
-        await RefreshSmbProfilesAsync();
-
-        // Don't keep password in memory longer than needed.
-        NewSmbPassword = string.Empty;
+        finally
+        {
+            // Don't keep password in memory longer than needed.
+            NewSmbPassword = string.Empty;
+        }
     }
 
     [RelayCommand]
@@ -276,11 +340,14 @@ public partial class LibraryViewModel : ViewModelBase
         var rel = ToRelativePath(entry.FullPath);
         var uri = _smbPlayback.CreatePlaybackUri(_smbHost, _smbShare, rel, profile);
 
+        // Store a non-sensitive locator for recents: smb://host/share/path?profileId=...
+        var storedLocator = BuildSmbStoredLocator(_smbHost, _smbShare, rel, profile.Id);
+
         var item = new MediaItem(
             Id: MediaItemId.From(MediaSourceKind.Smb, SmbPath.BuildStableLocator(_smbHost, _smbShare, rel)),
             DisplayName: entry.Name,
             SourceKind: MediaSourceKind.Smb,
-            SourceLocator: uri.ToString(),
+            SourceLocator: storedLocator,
             Duration: null);
 
         _playback.Open(item, new DirectUriPlaybackInput(uri));
@@ -310,22 +377,32 @@ public partial class LibraryViewModel : ViewModelBase
 
     private static string ToRelativePath(string fullPath) => SmbPath.NormalizeRelativePath(fullPath);
 
-    private static Uri? TryCreateUri(MediaItem item)
+    private static string BuildSmbStoredLocator(string host, string share, string relativePath, string profileId)
     {
-        // Local media
-        if (Uri.TryCreate(item.SourceLocator, UriKind.Absolute, out var abs))
-            return abs;
-
-        // UNC / file path
-        try
-        {
-            return new Uri("file:" + item.SourceLocator.Replace("\\", "/"));
-        }
-        catch
-        {
-            return null;
-        }
+        var rel = SmbPath.NormalizeRelativePath(relativePath).Replace('\\', '/');
+        var path = string.IsNullOrEmpty(rel) ? $"/{share}" : $"/{share}/{rel}";
+        var b = new UriBuilder { Scheme = "smb", Host = host, Path = path, Query = "profileId=" + Uri.EscapeDataString(profileId) };
+        return b.Uri.ToString();
     }
+
+    private static Dictionary<string, string> ParseQuery(string query)
+    {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(query))
+            return dict;
+
+        var s = query.StartsWith("?", StringComparison.Ordinal) ? query.Substring(1) : query;
+        foreach (var part in s.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var kv = part.Split('=', 2);
+            var k = Uri.UnescapeDataString(kv[0]);
+            var v = kv.Length == 2 ? Uri.UnescapeDataString(kv[1]) : string.Empty;
+            dict[k] = v;
+        }
+        return dict;
+    }
+
+    // NOTE: SMB recents are opened via profile lookup + playback locator, so we do not expose a static TryCreateUri anymore.
 }
 
 

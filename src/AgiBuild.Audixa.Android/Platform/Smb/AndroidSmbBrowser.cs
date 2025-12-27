@@ -32,9 +32,7 @@ public sealed class AndroidSmbBrowser : ISmbBrowser
 
             using var bridge = new SmbjBridgeInvoker();
 
-            var path = request.Path.Replace('/', '\\');
-            if (string.IsNullOrWhiteSpace(path))
-                path = @"\";
+            var path = SmbPath.NormalizeRelativePath(request.Path);
 
             var items = bridge.ListDirectory(
                 request.Host,

@@ -126,6 +126,7 @@ public sealed class ShellViewModelTests
     private sealed class FakeSmbProfileStore : ISmbProfileStore
     {
         public Task<IReadOnlyList<SmbProfile>> GetAllAsync() => Task.FromResult<IReadOnlyList<SmbProfile>>(Array.Empty<SmbProfile>());
+        public Task<SmbProfile?> TryGetByIdAsync(string id) => Task.FromResult<SmbProfile?>(null);
         public Task UpsertAsync(SmbProfile profile) => Task.CompletedTask;
     }
 

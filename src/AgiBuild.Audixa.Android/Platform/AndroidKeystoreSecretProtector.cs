@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.Versioning;
 using AgiBuild.Audixa.Persistence;
 using Android.Security.Keystore;
 using Java.Security;
@@ -7,6 +8,7 @@ using Javax.Crypto.Spec;
 
 namespace AgiBuild.Audixa.Android.Platform;
 
+[SupportedOSPlatform("android23.0")]
 public sealed class AndroidKeystoreSecretProtector : ISecretProtector
 {
     private const string KeyStoreName = "AndroidKeyStore";
@@ -22,7 +24,8 @@ public sealed class AndroidKeystoreSecretProtector : ISecretProtector
         EnsureKey();
         var key = GetKey();
 
-        var cipher = Cipher.GetInstance("AES/GCM/NoPadding");
+        var cipher = Cipher.GetInstance("AES/GCM/NoPadding")
+                     ?? throw new InvalidOperationException("Cipher provider not available.");
         cipher.Init(CipherMode.EncryptMode, key);
 
         var iv = cipher.GetIV() ?? Array.Empty<byte>();
@@ -63,7 +66,8 @@ public sealed class AndroidKeystoreSecretProtector : ISecretProtector
         EnsureKey();
         var key = GetKey();
 
-        var cipher = Cipher.GetInstance("AES/GCM/NoPadding");
+        var cipher = Cipher.GetInstance("AES/GCM/NoPadding")
+                     ?? throw new InvalidOperationException("Cipher provider not available.");
         var spec = new GCMParameterSpec(128, iv);
         cipher.Init(CipherMode.DecryptMode, key, spec);
 
@@ -72,13 +76,15 @@ public sealed class AndroidKeystoreSecretProtector : ISecretProtector
 
     private static void EnsureKey()
     {
-        var ks = KeyStore.GetInstance(KeyStoreName);
+        var ks = KeyStore.GetInstance(KeyStoreName)
+                 ?? throw new InvalidOperationException("Android keystore not available.");
         ks.Load(null);
 
         if (ks.ContainsAlias(KeyAlias))
             return;
 
-        var gen = KeyGenerator.GetInstance(KeyProperties.KeyAlgorithmAes, KeyStoreName);
+        var gen = KeyGenerator.GetInstance(KeyProperties.KeyAlgorithmAes, KeyStoreName)
+                  ?? throw new InvalidOperationException("KeyGenerator not available.");
         var spec = new KeyGenParameterSpec.Builder(
                 KeyAlias,
                 KeyStorePurpose.Encrypt | KeyStorePurpose.Decrypt)
@@ -93,7 +99,8 @@ public sealed class AndroidKeystoreSecretProtector : ISecretProtector
 
     private static IKey GetKey()
     {
-        var ks = KeyStore.GetInstance(KeyStoreName);
+        var ks = KeyStore.GetInstance(KeyStoreName)
+                 ?? throw new InvalidOperationException("Android keystore not available.");
         ks.Load(null);
         var key = ks.GetKey(KeyAlias, null);
         if (key is null)
