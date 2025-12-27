@@ -115,6 +115,61 @@ public sealed class LibraryViewModelTests
     }
 
     [Fact]
+    public async Task BrowseSmb_NonRoot_IncludesUpEntry()
+    {
+        var playback = new FakePlayback();
+        var notifications = new FakeNotifications();
+        var localSource = new FakeSourceProvider(null);
+
+        var profile = new SmbProfile(
+            Id: "p1",
+            Name: "p1",
+            RootPath: "smb://server/share",
+            UpdatedAtUtc: DateTimeOffset.UtcNow,
+            Deleted: false,
+            Host: "server",
+            Share: "share");
+
+        var smbStore = new FakeSmbProfileStore(new[] { profile });
+
+        var smbBrowser = new FakeSmbBrowser
+        {
+            ItemsToReturn = new[]
+            {
+                new SmbBrowseEntry("inner.mp4", false),
+            },
+        };
+
+        var smbPlayback = new FakeSmbPlaybackLocator();
+        var secrets = new FakeSecureSecretStore();
+        var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
+
+        var vm = new LibraryViewModel(
+            libraryStore: new FakeLibraryStore(),
+            notifications: notifications,
+            localSource: localSource,
+            playback: playback,
+            smbProfiles: smbStore,
+            smbBrowser: smbBrowser,
+            smbPlayback: smbPlayback,
+            secrets: secrets,
+            logger: NullLogger<LibraryViewModel>.Instance,
+            timeProvider: time);
+
+        await vm.Initialization;
+
+        // Start at root, then enter a folder.
+        await vm.BrowseSmbCommand.ExecuteAsync(null);
+        await vm.OpenSmbEntryCommand.ExecuteAsync(new LibraryViewModel.SmbEntryViewModel(
+            Name: "folder",
+            FullPath: "folder",
+            IsDirectory: true,
+            OpenCommand: vm.OpenSmbEntryCommand));
+
+        Assert.Contains(vm.SmbEntries, e => e.Name == ".." && e.IsDirectory);
+    }
+
+    [Fact]
     public async Task RefreshRecents_PopulatesRecentItems()
     {
         var playback = new FakePlayback();

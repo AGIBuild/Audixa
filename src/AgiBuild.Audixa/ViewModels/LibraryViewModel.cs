@@ -297,6 +297,17 @@ public partial class LibraryViewModel : ViewModelBase
                 Domain: profile.Domain,
                 SecretId: profile.SecretId));
 
+            // Add a synthetic ".." entry for navigation when not at root.
+            if (!string.IsNullOrWhiteSpace(_smbRelativePath))
+            {
+                var parent = GetParentRelativePath(_smbRelativePath);
+                SmbEntries.Add(new SmbEntryViewModel(
+                    Name: "..",
+                    FullPath: parent,
+                    IsDirectory: true,
+                    OpenCommand: OpenSmbEntryCommand));
+            }
+
             foreach (var e in list)
             {
                 SmbEntries.Add(new SmbEntryViewModel(
@@ -376,6 +387,16 @@ public partial class LibraryViewModel : ViewModelBase
     }
 
     private static string ToRelativePath(string fullPath) => SmbPath.NormalizeRelativePath(fullPath);
+
+    private static string GetParentRelativePath(string currentRelativePath)
+    {
+        var cur = SmbPath.NormalizeRelativePath(currentRelativePath);
+        if (string.IsNullOrEmpty(cur))
+            return string.Empty;
+
+        var idx = cur.LastIndexOf('\\');
+        return idx <= 0 ? string.Empty : cur.Substring(0, idx);
+    }
 
     private static string BuildSmbStoredLocator(string host, string share, string relativePath, string profileId)
     {
