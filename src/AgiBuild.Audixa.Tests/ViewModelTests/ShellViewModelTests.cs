@@ -34,6 +34,9 @@ public sealed class ShellViewModelTests
             localSource: new FakeSourceProvider(),
             playback: playback,
             smbProfiles: new FakeSmbProfileStore(),
+            smbBrowser: new FakeSmbBrowser(),
+            smbPlayback: new FakeSmbPlaybackLocator(),
+            secrets: new FakeSecureSecretStore(),
             logger: NullLogger<LibraryViewModel>.Instance,
             timeProvider: time);
         await library.Initialization;
@@ -124,6 +127,26 @@ public sealed class ShellViewModelTests
     {
         public Task<IReadOnlyList<SmbProfile>> GetAllAsync() => Task.FromResult<IReadOnlyList<SmbProfile>>(Array.Empty<SmbProfile>());
         public Task UpsertAsync(SmbProfile profile) => Task.CompletedTask;
+    }
+
+    private sealed class FakeSmbBrowser : ISmbBrowser
+    {
+        public Task<IReadOnlyList<SmbBrowseEntry>> ListAsync(SmbBrowseRequest request, System.Threading.CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<SmbBrowseEntry>>(Array.Empty<SmbBrowseEntry>());
+    }
+
+    private sealed class FakeSmbPlaybackLocator : ISmbPlaybackLocator
+    {
+        public Uri CreatePlaybackUri(string host, string share, string relativePath, SmbProfile profile) =>
+            new Uri($"smb://{host}/{share}/{SmbPath.NormalizeRelativePath(relativePath).Replace("\\", "/")}");
+    }
+
+    private sealed class FakeSecureSecretStore : ISecureSecretStore
+    {
+        public Task<string> UpsertAsync(string purpose, string plaintext, string? secretId = null) =>
+            Task.FromResult(secretId ?? "sid");
+        public Task<string?> TryGetAsync(string secretId) => Task.FromResult<string?>("pw");
+        public Task DeleteAsync(string secretId) => Task.CompletedTask;
     }
 }
 

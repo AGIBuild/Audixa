@@ -2,10 +2,11 @@
   <Folder Name="/Solution Items/">
     <File Path="Directory.Packages.props" />
   </Folder>
+  <Project Path="../build/_build.csproj" />
   <Project Path="AgiBuild.Audixa.Android/AgiBuild.Audixa.Android.csproj" />
   <Project Path="AgiBuild.Audixa.Browser/AgiBuild.Audixa.Browser.csproj" />
   <Project Path="AgiBuild.Audixa.Desktop/AgiBuild.Audixa.Desktop.csproj" />
   <Project Path="AgiBuild.Audixa.iOS/AgiBuild.Audixa.iOS.csproj" />
-  <Project Path="AgiBuild.Audixa/AgiBuild.Audixa.csproj" />
   <Project Path="AgiBuild.Audixa.Tests/AgiBuild.Audixa.Tests.csproj" />
+  <Project Path="AgiBuild.Audixa/AgiBuild.Audixa.csproj" />
 </Solution>

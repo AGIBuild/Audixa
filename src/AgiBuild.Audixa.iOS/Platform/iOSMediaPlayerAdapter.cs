@@ -10,7 +10,7 @@ using UIKit;
 
 namespace AgiBuild.Audixa.iOS.Platform;
 
-public sealed class IosMediaPlayerAdapter : IMediaPlayerAdapter
+public sealed class IosMediaPlayerAdapter : IMediaPlayerAdapter, IDisposable
 {
     private AVPlayer? _player;
     private AVPlayerItem? _item;
@@ -228,6 +228,11 @@ public sealed class IosMediaPlayerAdapter : IMediaPlayerAdapter
         {
             _player = null;
         }
+    }
+
+    public void Dispose()
+    {
+        CleanupPlayer();
     }
 }
 

@@ -410,6 +410,12 @@ FodyWeavers.xsd
 # Built Visual Studio Code Extensions
 *.vsix
 
+# NUKE build
+.nuke/temp/
+.nuke/output/
+.nuke/*.local.json
+.nuke/.update
+
 # Windows Installer files from build outputs
 *.cab
 *.msi

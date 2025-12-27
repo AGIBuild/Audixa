@@ -20,8 +20,15 @@ public partial class LibraryViewModel : ViewModelBase
     private readonly ISourceProvider _localSource;
     private readonly IPlaybackService _playback;
     private readonly ISmbProfileStore _smbProfiles;
+    private readonly ISmbBrowser _smbBrowser;
+    private readonly ISmbPlaybackLocator _smbPlayback;
+    private readonly ISecureSecretStore _secrets;
     private readonly ILogger<LibraryViewModel> _logger;
     private readonly TimeProvider _timeProvider;
+
+    private string _smbHost = string.Empty;
+    private string _smbShare = string.Empty;
+    private string _smbRelativePath = string.Empty;
 
     public LibraryViewModel(
         ILibraryStore libraryStore,
@@ -29,6 +36,9 @@ public partial class LibraryViewModel : ViewModelBase
         ISourceProvider localSource,
         IPlaybackService playback,
         ISmbProfileStore smbProfiles,
+        ISmbBrowser smbBrowser,
+        ISmbPlaybackLocator smbPlayback,
+        ISecureSecretStore secrets,
         ILogger<LibraryViewModel> logger,
         TimeProvider timeProvider)
     {
@@ -37,19 +47,42 @@ public partial class LibraryViewModel : ViewModelBase
         _localSource = localSource;
         _playback = playback;
         _smbProfiles = smbProfiles;
+        _smbBrowser = smbBrowser;
+        _smbPlayback = smbPlayback;
+        _secrets = secrets;
         _logger = logger;
         _timeProvider = timeProvider;
 
-        Initialization = RefreshSmbProfilesAsync();
+        Initialization = InitializeAsync();
+
+        _playback.MediaOpened += (_, _) => _ = RefreshRecentsAsync();
     }
 
     public Task Initialization { get; }
+
+    private async Task InitializeAsync()
+    {
+        await RefreshSmbProfilesAsync();
+        await RefreshRecentsAsync();
+    }
 
     [ObservableProperty]
     private string _title = "Library";
 
     [ObservableProperty]
     private string _newSmbRootPath = @"\\server\share";
+
+    [ObservableProperty]
+    private string _newSmbUsername = string.Empty;
+
+    [ObservableProperty]
+    private string _newSmbDomain = string.Empty;
+
+    [ObservableProperty]
+    private string _newSmbPassword = string.Empty;
+
+    [ObservableProperty]
+    private bool _rememberSmbPassword = true;
 
     public ObservableCollection<SmbProfile> SmbProfileList { get; } = new();
 
@@ -61,6 +94,8 @@ public partial class LibraryViewModel : ViewModelBase
 
     public ObservableCollection<SmbEntryViewModel> SmbEntries { get; } = new();
 
+    public ObservableCollection<MediaItem> RecentItems { get; } = new();
+
     [RelayCommand]
     private async Task OpenLocalMp4Async()
     {
@@ -70,6 +105,37 @@ public partial class LibraryViewModel : ViewModelBase
 
         _playback.Open(req.Item, req.Input);
         _notifications.ShowToast("Opened", req.Item.DisplayName);
+        await RefreshRecentsAsync();
+    }
+
+    [RelayCommand]
+    private async Task RefreshRecentsAsync()
+    {
+        var list = await _libraryStore.GetRecentAsync(20);
+        RecentItems.Clear();
+        foreach (var item in list)
+            RecentItems.Add(item);
+    }
+
+    [RelayCommand]
+    private void OpenRecent(MediaItem item)
+    {
+        try
+        {
+            var uri = TryCreateUri(item);
+            if (uri is null)
+            {
+                _notifications.ShowToast("Not supported", "Cannot open this item yet.");
+                return;
+            }
+
+            _playback.Open(item, new DirectUriPlaybackInput(uri));
+            _notifications.ShowToast("Opened", item.DisplayName);
+        }
+        catch (Exception ex)
+        {
+            _notifications.ShowTopAlert("Open failed: " + ex.Message);
+        }
     }
 
     [RelayCommand]
@@ -91,92 +157,175 @@ public partial class LibraryViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(root))
             return;
 
+        if (!SmbPath.TryParseRoot(root, out var host, out var share))
+        {
+            _notifications.ShowTopAlert("Invalid SMB path. Use \\\\host\\share or smb://host/share");
+            return;
+        }
+
+        var username = string.IsNullOrWhiteSpace(NewSmbUsername) ? null : NewSmbUsername.Trim();
+        var domain = string.IsNullOrWhiteSpace(NewSmbDomain) ? null : NewSmbDomain.Trim();
+
+        string? secretId = null;
+        if (RememberSmbPassword && !string.IsNullOrWhiteSpace(NewSmbPassword))
+        {
+            try
+            {
+                var purpose = $"smb-password:{host}/{share}:{username ?? "(anonymous)"}";
+                secretId = await _secrets.UpsertAsync(purpose, NewSmbPassword.Trim());
+            }
+            catch (Exception ex)
+            {
+                _notifications.ShowTopAlert("Remember password failed: " + ex.Message);
+                return;
+            }
+        }
+
         var profile = new SmbProfile(
             Id: Guid.NewGuid().ToString("N"),
-            Name: root,
-            RootPath: root,
+            Name: $"{host}/{share}",
+            RootPath: $"smb://{host}/{share}",
             UpdatedAtUtc: _timeProvider.GetUtcNow(),
-            Deleted: false);
+            Deleted: false,
+            Host: host,
+            Share: share,
+            Username: username,
+            Domain: domain,
+            SecretId: secretId);
 
         await _smbProfiles.UpsertAsync(profile);
         _notifications.ShowToast("Saved", "SMB profile saved.");
         await RefreshSmbProfilesAsync();
+
+        // Don't keep password in memory longer than needed.
+        NewSmbPassword = string.Empty;
     }
 
     [RelayCommand]
     private async Task BrowseSmbAsync()
     {
-        var root = SelectedSmbProfile?.RootPath ?? (NewSmbRootPath ?? string.Empty);
-        if (string.IsNullOrWhiteSpace(root))
+        var profile = SelectedSmbProfile;
+        if (profile is null)
             return;
 
-        CurrentSmbPath = root;
-        await LoadSmbEntriesAsync(root);
+        if (!TryResolveProfileRoot(profile, out _smbHost, out _smbShare))
+        {
+            _notifications.ShowTopAlert("Invalid SMB profile root.");
+            return;
+        }
+
+        _smbRelativePath = string.Empty;
+        CurrentSmbPath = $"smb://{_smbHost}/{_smbShare}";
+        await LoadSmbEntriesAsync(profile);
     }
 
-    private async Task LoadSmbEntriesAsync(string path)
+    private async Task LoadSmbEntriesAsync(SmbProfile profile)
     {
         SmbEntries.Clear();
 
         try
         {
-            var entries = await Task.Run(() => Directory.EnumerateFileSystemEntries(path).ToArray());
-            foreach (var e in entries)
+            var list = await _smbBrowser.ListAsync(new SmbBrowseRequest(
+                Host: _smbHost,
+                Share: _smbShare,
+                Path: _smbRelativePath,
+                Username: profile.Username,
+                Domain: profile.Domain,
+                SecretId: profile.SecretId));
+
+            foreach (var e in list)
             {
-                var isDir = Directory.Exists(e);
                 SmbEntries.Add(new SmbEntryViewModel(
-                    Name: Path.GetFileName(e),
-                    FullPath: e,
-                    IsDirectory: isDir,
+                    Name: e.Name,
+                    FullPath: BuildRelativePath(_smbRelativePath, e.Name, e.IsDirectory),
+                    IsDirectory: e.IsDirectory,
                     OpenCommand: OpenSmbEntryCommand));
             }
         }
         catch (Exception ex)
         {
             _notifications.ShowTopAlert("SMB browse failed: " + ex.Message);
-            _logger.LogWarning(ex, "SMB browse failed for {Path}", path);
+            _logger.LogWarning(ex, "SMB browse failed for {Host}/{Share} {Path}", _smbHost, _smbShare, _smbRelativePath);
         }
     }
 
     [RelayCommand]
     private async Task OpenSmbEntryAsync(SmbEntryViewModel entry)
     {
+        var profile = SelectedSmbProfile;
+        if (profile is null)
+            return;
+        if (!TryResolveProfileRoot(profile, out _smbHost, out _smbShare))
+            return;
+
         if (entry.IsDirectory)
         {
             CurrentSmbPath = entry.FullPath;
-            await LoadSmbEntriesAsync(entry.FullPath);
+            _smbRelativePath = ToRelativePath(entry.FullPath);
+            CurrentSmbPath = $"smb://{_smbHost}/{_smbShare}/{_smbRelativePath.Replace("\\", "/")}";
+            await LoadSmbEntriesAsync(profile);
             return;
         }
 
-        if (!entry.FullPath.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase))
+        if (!entry.Name.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase))
         {
             _notifications.ShowToast("Not supported", "MVP supports MP4 only.");
             return;
         }
 
-        Uri uri;
-        try
-        {
-            uri = new Uri(entry.FullPath);
-        }
-        catch
-        {
-            // Fallback for UNC
-            uri = new Uri("file:" + entry.FullPath.Replace("\\", "/"));
-        }
+        var rel = ToRelativePath(entry.FullPath);
+        var uri = _smbPlayback.CreatePlaybackUri(_smbHost, _smbShare, rel, profile);
 
         var item = new MediaItem(
-            Id: MediaItemId.From(MediaSourceKind.Smb, entry.FullPath),
-            DisplayName: Path.GetFileName(entry.FullPath),
+            Id: MediaItemId.From(MediaSourceKind.Smb, SmbPath.BuildStableLocator(_smbHost, _smbShare, rel)),
+            DisplayName: entry.Name,
             SourceKind: MediaSourceKind.Smb,
-            SourceLocator: entry.FullPath,
+            SourceLocator: uri.ToString(),
             Duration: null);
 
         _playback.Open(item, new DirectUriPlaybackInput(uri));
         _notifications.ShowToast("Opened", item.DisplayName);
+        await RefreshRecentsAsync();
     }
 
     public sealed record SmbEntryViewModel(string Name, string FullPath, bool IsDirectory, IAsyncRelayCommand<SmbEntryViewModel> OpenCommand);
+
+    private static bool TryResolveProfileRoot(SmbProfile profile, out string host, out string share)
+    {
+        host = profile.Host ?? string.Empty;
+        share = profile.Share ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(share))
+            return true;
+
+        return SmbPath.TryParseRoot(profile.RootPath, out host, out share);
+    }
+
+    private static string BuildRelativePath(string currentRel, string name, bool isDir)
+    {
+        // Keep the existing FullPath property name for minimal UI change; it now holds "relative path within share".
+        var rel = SmbPath.NormalizeRelativePath(currentRel);
+        var combined = string.IsNullOrEmpty(rel) ? name : $"{rel}\\{name}";
+        return isDir ? combined.TrimEnd('\\') : combined;
+    }
+
+    private static string ToRelativePath(string fullPath) => SmbPath.NormalizeRelativePath(fullPath);
+
+    private static Uri? TryCreateUri(MediaItem item)
+    {
+        // Local media
+        if (Uri.TryCreate(item.SourceLocator, UriKind.Absolute, out var abs))
+            return abs;
+
+        // UNC / file path
+        try
+        {
+            return new Uri("file:" + item.SourceLocator.Replace("\\", "/"));
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
 
 

@@ -7,10 +7,10 @@ using Avalonia.Controls;
 
 namespace AgiBuild.Audixa.Desktop.Video;
 
-public sealed class WebView2MediaPlayerAdapter : IMediaPlayerAdapter
+public sealed class WebView2MediaPlayerAdapter : IMediaPlayerAdapter, IDisposable
 {
     private readonly WebView2HostControl _view = new();
-    private readonly LocalHttpFileProxy _localProxy = new();
+    private LocalHttpFileProxy? _localProxy;
 
     public Control View => _view;
 
@@ -31,6 +31,7 @@ public sealed class WebView2MediaPlayerAdapter : IMediaPlayerAdapter
         {
             if (direct.Uri.IsFile)
             {
+                _localProxy ??= new LocalHttpFileProxy();
                 var url = _localProxy.BindFile(direct.Uri.LocalPath);
                 _view.SetVideoSource(url);
             }
@@ -84,6 +85,12 @@ public sealed class WebView2MediaPlayerAdapter : IMediaPlayerAdapter
         {
             ErrorRaised?.Invoke(this, message[6..]);
         }
+    }
+
+    public void Dispose()
+    {
+        try { _localProxy?.Dispose(); } catch { }
+        _localProxy = null;
     }
 
     private sealed class LocalHttpFileProxy : IDisposable

@@ -20,7 +20,7 @@ public sealed class PlaybackServiceTests
         var store = new FakeLibraryStore();
         var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
 
-        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time);
+        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time, new InlineDispatcher());
 
         svc.Play();
 
@@ -36,7 +36,7 @@ public sealed class PlaybackServiceTests
         var store = new FakeLibraryStore();
         var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
 
-        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time);
+        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time, new InlineDispatcher());
 
         var item = new MediaItem("m1", "test.mp4", MediaSourceKind.Local, "file:///test.mp4", null);
         var input = new DirectUriPlaybackInput(new Uri("file:///test.mp4"));
@@ -63,7 +63,7 @@ public sealed class PlaybackServiceTests
         var store = new FakeLibraryStore();
         var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 1, 2, 3, TimeSpan.Zero));
 
-        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time);
+        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time, new InlineDispatcher());
 
         var item = new MediaItem("m1", "test.mp4", MediaSourceKind.Local, "file:///test.mp4", null);
         svc.Open(item, new DirectUriPlaybackInput(new Uri("file:///test.mp4")));
@@ -87,7 +87,7 @@ public sealed class PlaybackServiceTests
         var store = new FakeLibraryStore();
         var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
 
-        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time);
+        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time, new InlineDispatcher());
 
         adapter.RaiseError("boom");
 
@@ -103,7 +103,7 @@ public sealed class PlaybackServiceTests
         var store = new FakeLibraryStore();
         var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
 
-        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time);
+        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time, new InlineDispatcher());
         var item = new MediaItem("m1", "test.mp4", MediaSourceKind.Local, "file:///test.mp4", null);
         svc.Open(item, new DirectUriPlaybackInput(new Uri("file:///test.mp4")));
         svc.Play();
@@ -136,7 +136,7 @@ public sealed class PlaybackServiceTests
         var store = new FakeLibraryStoreWithResume(TimeSpan.FromSeconds(12));
         var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
 
-        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time);
+        var svc = new PlaybackService(adapter, notifications, store, NullLogger<PlaybackService>.Instance, time, new InlineDispatcher());
         var item = new MediaItem("m1", "test.mp4", MediaSourceKind.Local, "file:///test.mp4", null);
         svc.Open(item, new DirectUriPlaybackInput(new Uri("file:///test.mp4")));
 
@@ -176,6 +176,11 @@ public sealed class PlaybackServiceTests
         public void RaiseError(string error) => ErrorRaised?.Invoke(this, error);
         public void RaisePosition(TimeSpan pos) => PositionChanged?.Invoke(this, pos);
         public void RaiseDuration(TimeSpan? dur) => DurationChanged?.Invoke(this, dur);
+    }
+
+    private sealed class InlineDispatcher : AgiBuild.Audixa.Infrastructure.IUiDispatcher
+    {
+        public void Post(Action action) => action();
     }
 
     private sealed class FakeNotifications : INotificationService

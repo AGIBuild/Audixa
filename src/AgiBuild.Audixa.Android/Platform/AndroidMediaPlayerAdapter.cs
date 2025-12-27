@@ -3,14 +3,17 @@ using System.Threading;
 using global::Android.Views;
 using AndroidX.Media3.Common;
 using AndroidX.Media3.ExoPlayer;
+using AgiBuild.Audixa.Android.Platform.Smb;
 using AgiBuild.Audixa.Services;
+using AgiBuild.Audixa.Stores;
 using Avalonia.Controls;
 using Avalonia.Media;
 
 namespace AgiBuild.Audixa.Android.Platform;
 
-public sealed class AndroidMediaPlayerAdapter : IMediaPlayerAdapter
+public sealed class AndroidMediaPlayerAdapter : IMediaPlayerAdapter, IDisposable
 {
+    private readonly ISecureSecretStore _secrets;
     private IExoPlayer? _player;
     private Surface? _surface;
     private PlaybackInput? _currentInput;
@@ -33,8 +36,9 @@ public sealed class AndroidMediaPlayerAdapter : IMediaPlayerAdapter
     public event EventHandler<TimeSpan?>? DurationChanged;
     public event EventHandler<string>? ErrorRaised;
 
-    public AndroidMediaPlayerAdapter()
+    public AndroidMediaPlayerAdapter(ISecureSecretStore secrets)
     {
+        _secrets = secrets;
         // Lazy init on first Open to ensure Activity is ready.
     }
 
@@ -154,7 +158,20 @@ public sealed class AndroidMediaPlayerAdapter : IMediaPlayerAdapter
         if (_player is not null)
             return;
 
-        _player = new ExoPlayerBuilder(context).Build();
+        var builder = new ExoPlayerBuilder(context);
+        try
+        {
+            // Wire a custom DataSourceFactory so smb:// URIs can be streamed with seek support.
+            var mediaSourceFactory = new AndroidX.Media3.ExoPlayer.Source.DefaultMediaSourceFactory(context);
+            mediaSourceFactory.SetDataSourceFactory(new SmbDataSourceFactory(_secrets));
+            builder.SetMediaSourceFactory(mediaSourceFactory);
+        }
+        catch
+        {
+            // Best effort: if the API shape differs, we'll fail back to the default.
+        }
+
+        _player = builder.Build();
         if (_player is null)
         {
             ErrorRaised?.Invoke(this, "Failed to create ExoPlayer.");
@@ -262,6 +279,57 @@ public sealed class AndroidMediaPlayerAdapter : IMediaPlayerAdapter
         finally
         {
             _positionTimer = null;
+        }
+    }
+
+    public void Dispose()
+    {
+        StopTimer();
+
+        try
+        {
+            if (_player is not null)
+                _player.PlayWhenReady = false;
+        }
+        catch
+        {
+            // ignore
+        }
+
+        try
+        {
+            // Best effort: Media3 player should be released.
+            _player?.Release();
+        }
+        catch
+        {
+            // ignore
+        }
+
+        try
+        {
+            _player?.Dispose();
+        }
+        catch
+        {
+            // ignore
+        }
+        finally
+        {
+            _player = null;
+        }
+
+        try
+        {
+            _surface?.Release();
+        }
+        catch
+        {
+            // ignore
+        }
+        finally
+        {
+            _surface = null;
         }
     }
 }

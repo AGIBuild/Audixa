@@ -39,6 +39,13 @@ PRAGMA foreign_keys=ON;
             SetUserVersion(conn, 2);
             version = 2;
         }
+
+        if (version < 3)
+        {
+            ApplyV3(conn);
+            SetUserVersion(conn, 3);
+            version = 3;
+        }
     }
 
     private static int GetUserVersion(SqliteConnection conn)
@@ -134,6 +141,47 @@ CREATE TABLE IF NOT EXISTS smb_profile (
 
 CREATE INDEX IF NOT EXISTS idx_smb_profile_updated
   ON smb_profile(updated_at_utc DESC);
+""", tx);
+
+        tx.Commit();
+    }
+
+    private static void ApplyV3(SqliteConnection conn)
+    {
+        using var tx = conn.BeginTransaction();
+
+        Execute(conn, """
+CREATE TABLE IF NOT EXISTS secret (
+  id TEXT PRIMARY KEY,
+  purpose TEXT NOT NULL,
+  cipher BLOB NOT NULL,
+  updated_at_utc TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_secret_updated
+  ON secret(updated_at_utc DESC);
+""", tx);
+
+        // Extend SMB profile with structured fields and an optional secret reference.
+        Execute(conn, """
+ALTER TABLE smb_profile ADD COLUMN host TEXT NULL;
+""", tx);
+        Execute(conn, """
+ALTER TABLE smb_profile ADD COLUMN share TEXT NULL;
+""", tx);
+        Execute(conn, """
+ALTER TABLE smb_profile ADD COLUMN username TEXT NULL;
+""", tx);
+        Execute(conn, """
+ALTER TABLE smb_profile ADD COLUMN domain TEXT NULL;
+""", tx);
+        Execute(conn, """
+ALTER TABLE smb_profile ADD COLUMN secret_id TEXT NULL;
+""", tx);
+
+        Execute(conn, """
+CREATE INDEX IF NOT EXISTS idx_smb_profile_host_share
+  ON smb_profile(host, share);
 """, tx);
 
         tx.Commit();

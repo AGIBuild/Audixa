@@ -1,8 +1,10 @@
 using System;
 using System.IO;
+using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using Foundation;
 using UIKit;
+using UniformTypeIdentifiers;
 
 namespace AgiBuild.Audixa.iOS.Platform;
 
@@ -23,10 +25,21 @@ internal static class IosDocumentPickerHost
                     return;
                 }
 
-                var picker = new UIDocumentPickerViewController(allowedUtis, UIDocumentPickerMode.Open)
+                UIDocumentPickerViewController picker;
+                if (OperatingSystem.IsIOSVersionAtLeast(14) || OperatingSystem.IsMacCatalystVersionAtLeast(14))
                 {
-                    AllowsMultipleSelection = false,
-                };
+                    var types = CreateTypes(allowedUtis);
+                    // iOS 14+: use UTType-based constructor; using a copy to ensure sandbox access.
+                    picker = new UIDocumentPickerViewController(types, true);
+                }
+                else
+                {
+#pragma warning disable CA1422 // Obsolete API used only on older iOS.
+                    picker = new UIDocumentPickerViewController(allowedUtis, UIDocumentPickerMode.Open);
+#pragma warning restore CA1422
+                }
+
+                picker.AllowsMultipleSelection = false;
 
                 picker.Delegate = new Delegate(tcs, fallbackExtension);
                 controller.PresentViewController(picker, true, null);
@@ -38,6 +51,36 @@ internal static class IosDocumentPickerHost
         });
 
         return tcs.Task;
+    }
+
+    [SupportedOSPlatform("ios14.0")]
+    [SupportedOSPlatform("maccatalyst14.0")]
+    private static UTType[] CreateTypes(string[] allowedUtis)
+    {
+        var list = new System.Collections.Generic.List<UTType>();
+        foreach (var uti in allowedUtis)
+        {
+            if (string.IsNullOrWhiteSpace(uti))
+                continue;
+
+            var t = UTType.CreateFromIdentifier(uti);
+            if (t is not null)
+                list.Add(t);
+        }
+
+        if (list.Count > 0)
+            return list.ToArray();
+
+        var fallback = new System.Collections.Generic.List<UTType>();
+        var data = UTType.CreateFromIdentifier("public.data");
+        if (data is not null)
+            fallback.Add(data);
+
+        var item = UTType.CreateFromIdentifier("public.item");
+        if (item is not null)
+            fallback.Add(item);
+
+        return fallback.ToArray();
     }
 
     private static UIViewController? GetPresenterController()

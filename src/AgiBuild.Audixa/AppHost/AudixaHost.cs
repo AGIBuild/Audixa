@@ -10,6 +10,7 @@ using AgiBuild.Audixa.Sources;
 using AgiBuild.Audixa.Sources.Impl;
 using AgiBuild.Audixa.Persistence;
 using AgiBuild.Audixa.Persistence.Sqlite;
+using AgiBuild.Audixa.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -22,6 +23,7 @@ public static class AudixaHost
         var services = new ServiceCollection();
 
         services.AddSingleton<TimeProvider>(TimeProvider.System);
+        services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
 
         // Logging (no PII). For now, no providers are configured; it can be extended later.
         services.AddLogging(b => b.SetMinimumLevel(LogLevel.Information));
@@ -40,6 +42,8 @@ public static class AudixaHost
         // Persistence (SQLite)
         services.AddSingleton<IAudixaDatabase, AudixaSqliteDatabase>();
         services.AddSingleton<IDatabaseInitializer, SqliteDatabaseInitializer>();
+        services.AddSingleton<ISecretProtector>(_ => new ThrowingSecretProtector());
+        services.AddSingleton<ISecureSecretStore, AgiBuild.Audixa.Stores.Sqlite.SqliteSecureSecretStore>();
 
         // Platform helpers (shared implementation; can be overridden by platform modules later)
         services.AddSingleton<IWindowContext, WindowContext>();
@@ -48,6 +52,8 @@ public static class AudixaHost
 
         // Sources (MVP: Local only; SMB later)
         services.AddSingleton<ISourceProvider, LocalFileSourceProvider>();
+        services.AddSingleton<ISmbBrowser, NullSmbBrowser>();
+        services.AddSingleton<ISmbPlaybackLocator, NullSmbPlaybackLocator>();
 
         // Presentation adapters
         services.AddSingleton<IVideoSurfaceFactory, MediaPlayerVideoSurfaceFactory>();

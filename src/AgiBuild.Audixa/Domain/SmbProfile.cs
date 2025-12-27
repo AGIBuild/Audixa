@@ -7,6 +7,11 @@ public sealed record SmbProfile(
     string Name,
     string RootPath,
     DateTimeOffset UpdatedAtUtc,
-    bool Deleted);
+    bool Deleted,
+    string? Host = null,
+    string? Share = null,
+    string? Username = null,
+    string? Domain = null,
+    string? SecretId = null);
 
 

@@ -20,7 +20,8 @@ public sealed class SqliteSmbProfileStore : ISmbProfileStore
         await using var conn = _db.OpenConnection();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
-SELECT id, name, root_path, updated_at_utc, deleted
+SELECT id, name, root_path, updated_at_utc, deleted,
+       host, share, username, domain, secret_id
 FROM smb_profile
 WHERE deleted=0
 ORDER BY updated_at_utc DESC;
@@ -35,7 +36,12 @@ ORDER BY updated_at_utc DESC;
                 Name: reader.GetString(1),
                 RootPath: reader.GetString(2),
                 UpdatedAtUtc: DateTimeOffset.Parse(reader.GetString(3)),
-                Deleted: reader.GetInt64(4) != 0));
+                Deleted: reader.GetInt64(4) != 0,
+                Host: reader.IsDBNull(5) ? null : reader.GetString(5),
+                Share: reader.IsDBNull(6) ? null : reader.GetString(6),
+                Username: reader.IsDBNull(7) ? null : reader.GetString(7),
+                Domain: reader.IsDBNull(8) ? null : reader.GetString(8),
+                SecretId: reader.IsDBNull(9) ? null : reader.GetString(9)));
         }
 
         return list;
@@ -46,19 +52,29 @@ ORDER BY updated_at_utc DESC;
         await using var conn = _db.OpenConnection();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
-INSERT INTO smb_profile (id, name, root_path, updated_at_utc, deleted)
-VALUES ($id, $name, $root, $updated, $deleted)
+INSERT INTO smb_profile (id, name, root_path, updated_at_utc, deleted, host, share, username, domain, secret_id)
+VALUES ($id, $name, $root, $updated, $deleted, $host, $share, $username, $domain, $secretId)
 ON CONFLICT(id) DO UPDATE SET
   name=excluded.name,
   root_path=excluded.root_path,
   updated_at_utc=excluded.updated_at_utc,
-  deleted=excluded.deleted;
+  deleted=excluded.deleted,
+  host=excluded.host,
+  share=excluded.share,
+  username=excluded.username,
+  domain=excluded.domain,
+  secret_id=excluded.secret_id;
 """;
         cmd.Parameters.AddWithValue("$id", profile.Id);
         cmd.Parameters.AddWithValue("$name", profile.Name);
         cmd.Parameters.AddWithValue("$root", profile.RootPath);
         cmd.Parameters.AddWithValue("$updated", profile.UpdatedAtUtc.UtcDateTime.ToString("O"));
         cmd.Parameters.AddWithValue("$deleted", profile.Deleted ? 1 : 0);
+        cmd.Parameters.AddWithValue("$host", (object?)profile.Host ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$share", (object?)profile.Share ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$username", (object?)profile.Username ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$domain", (object?)profile.Domain ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$secretId", (object?)profile.SecretId ?? DBNull.Value);
 
         await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
     }

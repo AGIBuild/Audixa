@@ -2,13 +2,17 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net9.0-android</TargetFramework>
-    <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
+    <!-- Needed because JavaDependencyVerification relies on PackageReference.Version metadata.
+         With central package management, Version is typically omitted and the task may fail. -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
     <ApplicationId>com.CompanyName.AgiBuild.Audixa</ApplicationId>
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,9 +22,42 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia.Android" />
-    <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" />
-    <PackageReference Include="Xamarin.AndroidX.Media3.ExoPlayer" />
+    <AndroidJavaSource Include="Java\\**\\*.java" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Android" Version="11.3.10" />
+    <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.2.0" />
+    <PackageReference Include="Xamarin.AndroidX.Media3.ExoPlayer" Version="1.8.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- SMB2/SMB3 client (Apache-2.0). Used for Android SMB streaming. -->
+    <!-- Bind=false: we only package these jars for a small Java bridge, do NOT generate managed bindings. -->
+    <AndroidMavenLibrary Include="com.hierynomus:smbj" Version="0.14.0">
+      <Bind>false</Bind>
+    </AndroidMavenLibrary>
+    <AndroidMavenLibrary Include="com.hierynomus:asn-one" Version="0.6.0">
+      <Bind>false</Bind>
+    </AndroidMavenLibrary>
+    <AndroidMavenLibrary Include="net.engio:mbassador" Version="1.3.0">
+      <Bind>false</Bind>
+    </AndroidMavenLibrary>
+    <AndroidMavenLibrary Include="org.bouncycastle:bcprov-jdk18on" Version="1.79">
+      <Bind>false</Bind>
+    </AndroidMavenLibrary>
+    <AndroidMavenLibrary Include="org.slf4j:slf4j-api" Version="2.0.9">
+      <Bind>false</Bind>
+    </AndroidMavenLibrary>
+    <AndroidMavenLibrary Include="de.odysseus.juel:juel-impl" Version="2.2.7">
+      <Bind>false</Bind>
+    </AndroidMavenLibrary>
+    <AndroidMavenLibrary Include="de.odysseus.juel:juel-spi" Version="2.2.7">
+      <Bind>false</Bind>
+    </AndroidMavenLibrary>
+    <AndroidMavenLibrary Include="javax.el:el-api" Version="2.2">
+      <Bind>false</Bind>
+    </AndroidMavenLibrary>
   </ItemGroup>
 
   <ItemGroup>

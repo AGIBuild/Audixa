@@ -47,6 +47,7 @@ public partial class App : Application
             };
 
             _services.GetService<AgiBuild.Audixa.Platform.IWindowContext>()!.MainWindow = desktop.MainWindow;
+            desktop.Exit += (_, _) => DisposeServices();
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {
@@ -57,6 +58,23 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private void DisposeServices()
+    {
+        try
+        {
+            if (_services is IDisposable d)
+                d.Dispose();
+        }
+        catch
+        {
+            // ignore
+        }
+        finally
+        {
+            _services = null;
+        }
     }
 
     private void DisableAvaloniaDataAnnotationValidation()

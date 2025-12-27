@@ -8,7 +8,7 @@ namespace AgiBuild.Audixa.Tests;
 public sealed class SqliteDatabaseInitializerTests
 {
     [Fact]
-    public void Initialize_SetsUserVersionTo2_AndCreatesTables()
+    public void Initialize_SetsUserVersionTo3_AndCreatesTables()
     {
         using var db = new TempFileSqliteDatabase();
         var init = new SqliteDatabaseInitializer(db);
@@ -21,7 +21,7 @@ public sealed class SqliteDatabaseInitializerTests
         {
             cmd.CommandText = "PRAGMA user_version;";
             var v = cmd.ExecuteScalar();
-            Assert.Equal(2, v is long l ? (int)l : 0);
+            Assert.Equal(3, v is long l ? (int)l : 0);
         }
 
         AssertTableExists(conn, "media_item");
@@ -29,6 +29,7 @@ public sealed class SqliteDatabaseInitializerTests
         AssertTableExists(conn, "vocabulary_item");
         AssertTableExists(conn, "outbox");
         AssertTableExists(conn, "smb_profile");
+        AssertTableExists(conn, "secret");
     }
 
     private static void AssertTableExists(SqliteConnection conn, string table)

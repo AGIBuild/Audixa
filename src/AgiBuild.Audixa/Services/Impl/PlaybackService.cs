@@ -1,6 +1,7 @@
 using System;
 using AgiBuild.Audixa.Domain;
 using AgiBuild.Audixa.Stores;
+using AgiBuild.Audixa.Infrastructure;
 using Microsoft.Extensions.Logging;
 
 namespace AgiBuild.Audixa.Services.Impl;
@@ -12,6 +13,7 @@ public sealed class PlaybackService : IPlaybackService
     private readonly ILibraryStore _libraryStore;
     private readonly ILogger<PlaybackService> _logger;
     private readonly TimeProvider _timeProvider;
+    private readonly IUiDispatcher _ui;
     private DateTimeOffset _lastAutoSavedAtUtc = DateTimeOffset.MinValue;
     private TimeSpan _lastAutoSavedPosition = TimeSpan.Zero;
     private TimeSpan? _pendingResumePosition;
@@ -29,15 +31,17 @@ public sealed class PlaybackService : IPlaybackService
         INotificationService notifications,
         ILibraryStore libraryStore,
         ILogger<PlaybackService> logger,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IUiDispatcher ui)
     {
         _adapter = adapter;
         _notifications = notifications;
         _libraryStore = libraryStore;
         _logger = logger;
         _timeProvider = timeProvider;
+        _ui = ui;
 
-        _adapter.PositionChanged += (_, pos) =>
+        _adapter.PositionChanged += (_, pos) => _ui.Post(() =>
         {
             State.Position = pos;
 
@@ -56,18 +60,20 @@ public sealed class PlaybackService : IPlaybackService
             _lastAutoSavedAtUtc = now;
             _lastAutoSavedPosition = pos;
             _ = _libraryStore.SaveProgressAsync(State.CurrentItem.Id, pos, now);
-        };
-        _adapter.DurationChanged += (_, dur) =>
+        });
+
+        _adapter.DurationChanged += (_, dur) => _ui.Post(() =>
         {
             State.Duration = dur;
             TryApplyResumeSeek();
-        };
-        _adapter.ErrorRaised += (_, err) =>
+        });
+
+        _adapter.ErrorRaised += (_, err) => _ui.Post(() =>
         {
             State.ErrorMessage = err;
             _notifications.ShowTopAlert(err);
             _logger.LogWarning("Playback adapter error: {Error}", err);
-        };
+        });
     }
 
     public void Play()
@@ -149,7 +155,7 @@ public sealed class PlaybackService : IPlaybackService
                 return;
 
             _pendingResumePosition = pos.Value;
-            TryApplyResumeSeek();
+            // Apply on UI thread when duration is known or Play() is pressed.
         }
         catch (Exception ex)
         {
