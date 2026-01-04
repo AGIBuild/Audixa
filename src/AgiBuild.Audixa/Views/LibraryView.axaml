@@ -12,6 +12,7 @@
   <UserControl.Resources>
     <conv:IsDirectoryToIconConverter x:Key="IsDirToIconConverter" />
     <conv:InverseBooleanConverter x:Key="InverseBool" />
+    <conv:IsNotNullConverter x:Key="IsNotNullConverter" />
   </UserControl.Resources>
   <ScrollViewer x:Name="RootScroll" ScrollChanged="RootScroll_OnScrollChanged">
     <Border Padding="24">
@@ -120,6 +121,31 @@
                 IsEnabled="{Binding IsSmbLoading, Converter={StaticResource InverseBool}}"
                 HorizontalAlignment="Left"
                 Padding="10,6"/>
+
+        <!-- Auto-load / error feedback for infinite scroll -->
+        <TextBlock Text="Loading more…"
+                   IsVisible="{Binding IsSmbLoadingMore}"
+                   Opacity="0.7"
+                   FontSize="11"
+                   Margin="0,6,0,0"/>
+
+        <Border Background="#1a1625"
+                CornerRadius="8"
+                Padding="10"
+                Margin="0,8,0,0"
+                IsVisible="{Binding SmbLoadMoreError, Converter={StaticResource IsNotNullConverter}}">
+          <DockPanel>
+            <StackPanel>
+              <TextBlock Text="Load more failed" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding SmbLoadMoreError}" Opacity="0.7" FontSize="11" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Button DockPanel.Dock="Right"
+                    Content="Retry"
+                    Command="{Binding LoadMoreSmbCommand}"
+                    Margin="10,0,0,0"
+                    Padding="10,6"/>
+          </DockPanel>
+        </Border>
 
         <TextBlock Text="Continue Learning" FontSize="20" FontWeight="SemiBold" Margin="0,10,0,0"/>
 

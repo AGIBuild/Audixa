@@ -274,6 +274,54 @@ public sealed class LibraryViewModelTests
     }
 
     [Fact]
+    public async Task LoadMore_WhenInnerThrows_SetsLoadMoreError_AndResetsLoadingMore()
+    {
+        var playback = new FakePlayback();
+        var notifications = new FakeNotifications();
+        var localSource = new FakeSourceProvider(null);
+
+        var profile = new SmbProfile(
+            Id: "p1",
+            Name: "p1",
+            RootPath: "smb://server/share",
+            UpdatedAtUtc: DateTimeOffset.UtcNow,
+            Deleted: false,
+            Host: "server",
+            Share: "share");
+
+        var smbStore = new FakeSmbProfileStore(new[] { profile });
+
+        var smbBrowser = new ThrowOnSecondCallSmbBrowser();
+        smbBrowser.Pages.Enqueue(new SmbBrowsePage(new[] { new SmbBrowseEntry("a1.mp4", false) }, "200"));
+
+        var smbPlayback = new FakeSmbPlaybackLocator();
+        var secrets = new FakeSecureSecretStore();
+        var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
+
+        var vm = new LibraryViewModel(
+            libraryStore: new FakeLibraryStore(),
+            notifications: notifications,
+            localSource: localSource,
+            playback: playback,
+            smbProfiles: smbStore,
+            smbBrowser: smbBrowser,
+            smbPlayback: smbPlayback,
+            secrets: secrets,
+            logger: NullLogger<LibraryViewModel>.Instance,
+            timeProvider: time);
+
+        await vm.Initialization;
+
+        await vm.BrowseSmbCommand.ExecuteAsync(null);
+        Assert.True(vm.CanLoadMoreSmbEntries);
+
+        await vm.LoadMoreSmbCommand.ExecuteAsync(null);
+
+        Assert.False(vm.IsSmbLoadingMore);
+        Assert.NotNull(vm.SmbLoadMoreError);
+    }
+
+    [Fact]
     public async Task DeleteSelectedSmbProfile_MarksDeleted_AndDeletesSecret()
     {
         var playback = new FakePlayback();
@@ -648,6 +696,24 @@ public sealed class LibraryViewModelTests
         public string? ContinuationTokenToReturn { get; set; }
         public Task<SmbBrowsePage> ListAsync(SmbBrowseRequest request, System.Threading.CancellationToken ct = default) =>
             Task.FromResult(new SmbBrowsePage(ItemsToReturn, ContinuationTokenToReturn));
+    }
+
+    private sealed class ThrowOnSecondCallSmbBrowser : ISmbBrowser
+    {
+        public Queue<SmbBrowsePage> Pages { get; } = new();
+        private int _calls;
+
+        public Task<SmbBrowsePage> ListAsync(SmbBrowseRequest request, System.Threading.CancellationToken ct = default)
+        {
+            _calls++;
+            if (_calls >= 2)
+                throw new InvalidOperationException("boom");
+
+            if (Pages.TryDequeue(out var page))
+                return Task.FromResult(page);
+
+            return Task.FromResult(new SmbBrowsePage(Array.Empty<SmbBrowseEntry>(), ContinuationToken: null));
+        }
     }
 
     private sealed class FakeSmbPlaybackLocator : ISmbPlaybackLocator

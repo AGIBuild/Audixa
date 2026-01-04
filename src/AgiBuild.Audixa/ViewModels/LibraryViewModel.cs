@@ -124,6 +124,12 @@ public partial class LibraryViewModel : ViewModelBase
     [ObservableProperty]
     private int _smbLoadedCount;
 
+    [ObservableProperty]
+    private bool _isSmbLoadingMore;
+
+    [ObservableProperty]
+    private string? _smbLoadMoreError;
+
     [RelayCommand]
     private async Task OpenLocalMp4Async()
     {
@@ -453,6 +459,8 @@ public partial class LibraryViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(_smbContinuationToken))
             return;
 
+        IsSmbLoadingMore = true;
+        SmbLoadMoreError = null;
         await LoadSmbEntriesAsync(profile, forceRefresh: false, append: true);
     }
 
@@ -472,6 +480,11 @@ public partial class LibraryViewModel : ViewModelBase
         var ct = myCts.Token;
 
         IsSmbLoading = true;
+        if (!append)
+        {
+            IsSmbLoadingMore = false;
+            SmbLoadMoreError = null;
+        }
 
         try
         {
@@ -524,7 +537,15 @@ public partial class LibraryViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            _notifications.ShowTopAlert("SMB browse failed: " + ex.Message);
+            if (append)
+            {
+                // Keep token so user can retry.
+                SmbLoadMoreError = ex.Message;
+            }
+            else
+            {
+                _notifications.ShowTopAlert("SMB browse failed: " + ex.Message);
+            }
             _logger.LogWarning(ex, "SMB browse failed for {Host}/{Share} {Path}", _smbHost, _smbShare, _smbRelativePath);
         }
         finally
@@ -539,6 +560,9 @@ public partial class LibraryViewModel : ViewModelBase
                     _smbBrowseCts = null;
                 myCts.Dispose();
             }
+
+            if (Volatile.Read(ref _smbBrowseVersion) == myVersion && append)
+                IsSmbLoadingMore = false;
         }
     }
 
