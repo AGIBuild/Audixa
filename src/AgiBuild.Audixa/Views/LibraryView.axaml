@@ -13,7 +13,7 @@
     <conv:IsDirectoryToIconConverter x:Key="IsDirToIconConverter" />
     <conv:InverseBooleanConverter x:Key="InverseBool" />
   </UserControl.Resources>
-  <ScrollViewer>
+  <ScrollViewer x:Name="RootScroll" ScrollChanged="RootScroll_OnScrollChanged">
     <Border Padding="24">
       <StackPanel Spacing="18">
         <TextBlock Text="Add Source" FontSize="20" FontWeight="SemiBold" />
@@ -93,6 +93,7 @@
                   IsEnabled="{Binding IsSmbLoading, Converter={StaticResource InverseBool}}"/>
           <TextBlock Text="{Binding CurrentSmbPath}" Opacity="0.7" FontSize="12"/>
         </DockPanel>
+        <TextBlock Text="{Binding SmbLoadedCount, StringFormat={}{0} items loaded}" Opacity="0.6" FontSize="11"/>
         <ProgressBar IsVisible="{Binding IsSmbLoading}" IsIndeterminate="True" Height="3" />
 
         <Border Background="#140f1e" CornerRadius="12" Padding="8">

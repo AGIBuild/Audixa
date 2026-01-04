@@ -121,6 +121,9 @@ public partial class LibraryViewModel : ViewModelBase
     [ObservableProperty]
     private bool _canLoadMoreSmbEntries;
 
+    [ObservableProperty]
+    private int _smbLoadedCount;
+
     [RelayCommand]
     private async Task OpenLocalMp4Async()
     {
@@ -513,6 +516,7 @@ public partial class LibraryViewModel : ViewModelBase
 
             _smbContinuationToken = page.ContinuationToken;
             CanLoadMoreSmbEntries = !string.IsNullOrWhiteSpace(_smbContinuationToken);
+            SmbLoadedCount = Math.Max(0, SmbEntries.Count - (HasUpEntry() ? 1 : 0));
         }
         catch (OperationCanceledException)
         {
@@ -616,6 +620,8 @@ public partial class LibraryViewModel : ViewModelBase
         return idx <= 0 ? string.Empty : cur.Substring(0, idx);
     }
 
+    private bool HasUpEntry() => !string.IsNullOrWhiteSpace(_smbRelativePath);
+
     private static string BuildSmbStoredLocator(string host, string share, string relativePath, string profileId)
     {
         var rel = SmbPath.NormalizeRelativePath(relativePath).Replace('\\', '/');
@@ -643,5 +649,6 @@ public partial class LibraryViewModel : ViewModelBase
 
     // NOTE: SMB recents are opened via profile lookup + playback locator, so we do not expose a static TryCreateUri anymore.
 }
+
 
 

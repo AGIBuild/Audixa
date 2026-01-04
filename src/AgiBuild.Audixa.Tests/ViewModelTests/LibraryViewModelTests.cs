@@ -270,6 +270,7 @@ public sealed class LibraryViewModelTests
 
         Assert.Contains(vm.SmbEntries, e => e.Name == "a2.mp4");
         Assert.False(vm.CanLoadMoreSmbEntries);
+        Assert.Equal(2, vm.SmbLoadedCount);
     }
 
     [Fact]
