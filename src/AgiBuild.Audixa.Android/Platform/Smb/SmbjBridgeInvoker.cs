@@ -15,6 +15,7 @@ internal sealed class SmbjBridgeInvoker : IDisposable
     private static readonly IntPtr CtorId;
     private static readonly IntPtr OpenFileId;
     private static readonly IntPtr ListDirectoryId;
+    private static readonly IntPtr ListDirectoryPageId;
     private static readonly IntPtr ReadId;
     private static readonly IntPtr LengthId;
     private static readonly IntPtr CloseId;
@@ -35,6 +36,8 @@ internal sealed class SmbjBridgeInvoker : IDisposable
             "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)J");
         ListDirectoryId = JNIEnv.GetMethodID(ClassRef, "listDirectory",
             "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)[Ljava/lang/String;");
+        ListDirectoryPageId = JNIEnv.GetMethodID(ClassRef, "listDirectoryPage",
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;II)[Ljava/lang/String;");
         ReadId = JNIEnv.GetMethodID(ClassRef, "read", "(JJ[BII)I");
         LengthId = JNIEnv.GetMethodID(ClassRef, "length", "(J)J");
         CloseId = JNIEnv.GetMethodID(ClassRef, "close", "(J)V");
@@ -102,6 +105,53 @@ internal sealed class SmbjBridgeInvoker : IDisposable
             args[5] = new JValue(jPass);
 
             var obj = JNIEnv.CallObjectMethod(_instance, ListDirectoryId, args);
+            if (obj == IntPtr.Zero)
+                return Array.Empty<string>();
+
+            try
+            {
+                return (string[]?)JNIEnv.GetArray(obj, JniHandleOwnership.DoNotTransfer, typeof(string)) ?? Array.Empty<string>();
+            }
+            finally
+            {
+                JNIEnv.DeleteLocalRef(obj);
+            }
+        }
+        finally
+        {
+            JNIEnv.DeleteLocalRef(jHost);
+            JNIEnv.DeleteLocalRef(jShare);
+            JNIEnv.DeleteLocalRef(jPath);
+            if (jDomain != IntPtr.Zero) JNIEnv.DeleteLocalRef(jDomain);
+            if (jUser != IntPtr.Zero) JNIEnv.DeleteLocalRef(jUser);
+            if (jPass != IntPtr.Zero) JNIEnv.DeleteLocalRef(jPass);
+        }
+    }
+
+    public string[] ListDirectoryPage(string host, string share, string path, string? domain, string? username, string? password, int offset, int limit)
+    {
+        ThrowIfDisposed();
+
+        var jHost = JNIEnv.NewString(host);
+        var jShare = JNIEnv.NewString(share);
+        var jPath = JNIEnv.NewString(path);
+        var jDomain = domain is null ? IntPtr.Zero : JNIEnv.NewString(domain);
+        var jUser = username is null ? IntPtr.Zero : JNIEnv.NewString(username);
+        var jPass = password is null ? IntPtr.Zero : JNIEnv.NewString(password);
+
+        try
+        {
+            var args = new JValue[8];
+            args[0] = new JValue(jHost);
+            args[1] = new JValue(jShare);
+            args[2] = new JValue(jPath);
+            args[3] = new JValue(jDomain);
+            args[4] = new JValue(jUser);
+            args[5] = new JValue(jPass);
+            args[6] = new JValue(offset);
+            args[7] = new JValue(limit);
+
+            var obj = JNIEnv.CallObjectMethod(_instance, ListDirectoryPageId, args);
             if (obj == IntPtr.Zero)
                 return Array.Empty<string>();
 

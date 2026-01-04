@@ -36,22 +36,27 @@ public sealed class AndroidSmbBrowser : ISmbBrowser
 
             var path = SmbPath.NormalizeRelativePath(request.Path);
 
-            var items = bridge.ListDirectory(
+            var offset = ParseOffset(request.ContinuationToken);
+            var pageSize = request.PageSize <= 0 ? 200 : request.PageSize;
+
+            // Early-stop listing in Java: returns up to (pageSize + 1) items so we can determine whether there is more.
+            var items = bridge.ListDirectoryPage(
                 request.Host,
                 request.Share,
                 path,
                 request.Domain,
                 request.Username,
-                password);
+                password,
+                offset,
+                pageSize);
 
             ct.ThrowIfCancellationRequested();
 
-            var offset = ParseOffset(request.ContinuationToken);
-            var pageSize = request.PageSize <= 0 ? 200 : request.PageSize;
+            var hasMore = items.Length > pageSize;
+            var take = hasMore ? pageSize : items.Length;
 
-            var end = Math.Min(items.Length, offset + pageSize);
-            var list = new List<SmbBrowseEntry>(Math.Max(0, end - offset));
-            for (var i = offset; i < end; i++)
+            var list = new List<SmbBrowseEntry>(take);
+            for (var i = 0; i < take; i++)
             {
                 ct.ThrowIfCancellationRequested();
 
@@ -63,7 +68,7 @@ public sealed class AndroidSmbBrowser : ISmbBrowser
                 list.Add(new SmbBrowseEntry(name, isDir));
             }
 
-            var nextToken = end < items.Length ? end.ToString() : null;
+            var nextToken = hasMore ? (offset + take).ToString() : null;
 
             ct.ThrowIfCancellationRequested();
 

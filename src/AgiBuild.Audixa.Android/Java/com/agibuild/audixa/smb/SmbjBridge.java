@@ -138,6 +138,66 @@ public final class SmbjBridge {
         }
     }
 
+    public String[] listDirectoryPage(
+            String host,
+            String share,
+            String path,
+            String domain,
+            String username,
+            String password,
+            int offset,
+            int limit) {
+        SMBClient client = null;
+        Connection connection = null;
+        Session session = null;
+        DiskShare diskShare = null;
+
+        try {
+            client = new SMBClient();
+            connection = client.connect(host);
+            String d = domain == null ? "" : domain;
+            String u = username == null ? "" : username;
+            String p = password == null ? "" : password;
+            AuthenticationContext auth = new AuthenticationContext(u, p.toCharArray(), d);
+            session = connection.authenticate(auth);
+            diskShare = (DiskShare) session.connectShare(share);
+
+            int safeOffset = Math.max(0, offset);
+            int safeLimit = Math.max(0, limit);
+
+            // Collect at most (limit + 1) items so caller can determine if there is a next page.
+            ArrayList<String> items = new ArrayList<>();
+            int idx = 0;
+
+            for (FileIdBothDirectoryInformation info : diskShare.list(path)) {
+                String name = info.getFileName();
+                if (".".equals(name) || "..".equals(name)) {
+                    continue;
+                }
+
+                if (idx++ < safeOffset) {
+                    continue;
+                }
+
+                if (items.size() >= safeLimit + 1) {
+                    break;
+                }
+
+                boolean isDir = EnumWithValue.EnumUtils.isSet(info.getFileAttributes(), FileAttributes.FILE_ATTRIBUTE_DIRECTORY);
+                items.add((isDir ? "D" : "F") + "\t" + name);
+            }
+
+            return items.toArray(new String[0]);
+        } catch (Exception ex) {
+            throw new RuntimeException("SMB listDirectoryPage failed: " + ex.getMessage(), ex);
+        } finally {
+            try { if (diskShare != null) diskShare.close(); } catch (Exception ignored) { }
+            try { if (session != null) session.close(); } catch (Exception ignored) { }
+            try { if (connection != null) connection.close(); } catch (Exception ignored) { }
+            try { if (client != null) client.close(); } catch (Exception ignored) { }
+        }
+    }
+
     private static final class Handle {
         final SMBClient client;
         final Connection connection;
