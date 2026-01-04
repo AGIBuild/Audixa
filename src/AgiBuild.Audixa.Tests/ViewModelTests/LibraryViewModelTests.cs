@@ -115,6 +115,58 @@ public sealed class LibraryViewModelTests
     }
 
     [Fact]
+    public async Task BrowseSmb_NewRequest_CancelsPrevious()
+    {
+        var playback = new FakePlayback();
+        var notifications = new FakeNotifications();
+        var localSource = new FakeSourceProvider(null);
+
+        var profile = new SmbProfile(
+            Id: "p1",
+            Name: "p1",
+            RootPath: "smb://server/share",
+            UpdatedAtUtc: DateTimeOffset.UtcNow,
+            Deleted: false,
+            Host: "server",
+            Share: "share");
+
+        var smbStore = new FakeSmbProfileStore(new[] { profile });
+
+        var slowBrowser = new CancellableSmbBrowser();
+        var smbPlayback = new FakeSmbPlaybackLocator();
+        var secrets = new FakeSecureSecretStore();
+        var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
+
+        var vm = new LibraryViewModel(
+            libraryStore: new FakeLibraryStore(),
+            notifications: notifications,
+            localSource: localSource,
+            playback: playback,
+            smbProfiles: smbStore,
+            smbBrowser: slowBrowser,
+            smbPlayback: smbPlayback,
+            secrets: secrets,
+            logger: NullLogger<LibraryViewModel>.Instance,
+            timeProvider: time);
+
+        await vm.Initialization;
+
+        // First request starts and blocks.
+        var t1 = vm.BrowseSmbCommand.ExecuteAsync(null);
+        await slowBrowser.FirstStarted.Task;
+
+        // Second request should cancel the first.
+        var t2 = vm.RefreshSmbListingCommand.ExecuteAsync(null);
+
+        Assert.True(await slowBrowser.FirstCanceled.Task);
+
+        // Unblock second request.
+        slowBrowser.ReleaseSecond.SetResult(true);
+
+        await t2;
+    }
+
+    [Fact]
     public async Task BrowseSmb_NonRoot_IncludesUpEntry()
     {
         var playback = new FakePlayback();
@@ -167,6 +219,154 @@ public sealed class LibraryViewModelTests
             OpenCommand: vm.OpenSmbEntryCommand));
 
         Assert.Contains(vm.SmbEntries, e => e.Name == ".." && e.IsDirectory);
+    }
+
+    [Fact]
+    public async Task LoadMore_AppendsItems_AndHidesButtonWhenNoMore()
+    {
+        var playback = new FakePlayback();
+        var notifications = new FakeNotifications();
+        var localSource = new FakeSourceProvider(null);
+
+        var profile = new SmbProfile(
+            Id: "p1",
+            Name: "p1",
+            RootPath: "smb://server/share",
+            UpdatedAtUtc: DateTimeOffset.UtcNow,
+            Deleted: false,
+            Host: "server",
+            Share: "share");
+
+        var smbStore = new FakeSmbProfileStore(new[] { profile });
+
+        var smbBrowser = new SequencedSmbBrowser();
+        smbBrowser.Pages.Enqueue(new SmbBrowsePage(new[] { new SmbBrowseEntry("a1.mp4", false) }, "200"));
+        smbBrowser.Pages.Enqueue(new SmbBrowsePage(new[] { new SmbBrowseEntry("a2.mp4", false) }, null));
+
+        var smbPlayback = new FakeSmbPlaybackLocator();
+        var secrets = new FakeSecureSecretStore();
+        var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
+
+        var vm = new LibraryViewModel(
+            libraryStore: new FakeLibraryStore(),
+            notifications: notifications,
+            localSource: localSource,
+            playback: playback,
+            smbProfiles: smbStore,
+            smbBrowser: smbBrowser,
+            smbPlayback: smbPlayback,
+            secrets: secrets,
+            logger: NullLogger<LibraryViewModel>.Instance,
+            timeProvider: time);
+
+        await vm.Initialization;
+
+        await vm.BrowseSmbCommand.ExecuteAsync(null);
+
+        Assert.Contains(vm.SmbEntries, e => e.Name == "a1.mp4");
+        Assert.True(vm.CanLoadMoreSmbEntries);
+
+        await vm.LoadMoreSmbCommand.ExecuteAsync(null);
+
+        Assert.Contains(vm.SmbEntries, e => e.Name == "a2.mp4");
+        Assert.False(vm.CanLoadMoreSmbEntries);
+    }
+
+    [Fact]
+    public async Task DeleteSelectedSmbProfile_MarksDeleted_AndDeletesSecret()
+    {
+        var playback = new FakePlayback();
+        var notifications = new FakeNotifications();
+        var localSource = new FakeSourceProvider(null);
+
+        var profile = new SmbProfile(
+            Id: "p1",
+            Name: "p1",
+            RootPath: "smb://server/share",
+            UpdatedAtUtc: DateTimeOffset.UtcNow,
+            Deleted: false,
+            Host: "server",
+            Share: "share",
+            SecretId: "sid");
+
+        var smbStore = new MutableSmbProfileStore(new[] { profile });
+        var smbBrowser = new FakeSmbBrowser();
+        var smbPlayback = new FakeSmbPlaybackLocator();
+        var secrets = new TrackingSecureSecretStore();
+        var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
+
+        var vm = new LibraryViewModel(
+            libraryStore: new FakeLibraryStore(),
+            notifications: notifications,
+            localSource: localSource,
+            playback: playback,
+            smbProfiles: smbStore,
+            smbBrowser: smbBrowser,
+            smbPlayback: smbPlayback,
+            secrets: secrets,
+            logger: NullLogger<LibraryViewModel>.Instance,
+            timeProvider: time);
+
+        await vm.Initialization;
+        Assert.Single(vm.SmbProfileList);
+        Assert.NotNull(vm.SelectedSmbProfile);
+
+        await vm.DeleteSelectedSmbProfileCommand.ExecuteAsync(null);
+
+        Assert.Empty(vm.SmbProfileList);
+        Assert.Equal("sid", secrets.LastDeletedSecretId);
+    }
+
+    [Fact]
+    public async Task UpdateSelectedSmbProfile_OverwritesSecret_WhenPasswordProvided()
+    {
+        var playback = new FakePlayback();
+        var notifications = new FakeNotifications();
+        var localSource = new FakeSourceProvider(null);
+
+        var profile = new SmbProfile(
+            Id: "p1",
+            Name: "p1",
+            RootPath: "smb://server/share",
+            UpdatedAtUtc: DateTimeOffset.UtcNow,
+            Deleted: false,
+            Host: "server",
+            Share: "share",
+            Username: "old",
+            SecretId: "sid");
+
+        var smbStore = new MutableSmbProfileStore(new[] { profile });
+        var smbBrowser = new FakeSmbBrowser();
+        var smbPlayback = new FakeSmbPlaybackLocator();
+        var secrets = new TrackingSecureSecretStore();
+        var time = new ManualTimeProvider(new DateTimeOffset(2025, 12, 26, 0, 0, 0, TimeSpan.Zero));
+
+        var vm = new LibraryViewModel(
+            libraryStore: new FakeLibraryStore(),
+            notifications: notifications,
+            localSource: localSource,
+            playback: playback,
+            smbProfiles: smbStore,
+            smbBrowser: smbBrowser,
+            smbPlayback: smbPlayback,
+            secrets: secrets,
+            logger: NullLogger<LibraryViewModel>.Instance,
+            timeProvider: time);
+
+        await vm.Initialization;
+
+        vm.NewSmbRootPath = @"\\server\share";
+        vm.NewSmbUsername = "newuser";
+        vm.RememberSmbPassword = true;
+        vm.NewSmbPassword = "newpass";
+
+        await vm.UpdateSelectedSmbProfileCommand.ExecuteAsync(null);
+
+        var updated = await smbStore.TryGetByIdAsync("p1");
+        Assert.NotNull(updated);
+        Assert.Equal("newuser", updated!.Username);
+        Assert.Equal("sid", secrets.LastUpsertSecretId); // overwrite existing
+        Assert.NotEqual(string.Empty, secrets.LastUpsertPurpose);
     }
 
     [Fact]
@@ -420,11 +620,33 @@ public sealed class LibraryViewModelTests
         public Task UpsertAsync(SmbProfile profile) => Task.CompletedTask;
     }
 
+    private sealed class MutableSmbProfileStore : ISmbProfileStore
+    {
+        private readonly List<SmbProfile> _list;
+
+        public MutableSmbProfileStore(IEnumerable<SmbProfile> initial) => _list = initial.ToList();
+
+        public Task<IReadOnlyList<SmbProfile>> GetAllAsync() =>
+            Task.FromResult<IReadOnlyList<SmbProfile>>(_list.Where(p => !p.Deleted).ToList());
+
+        public Task<SmbProfile?> TryGetByIdAsync(string id) =>
+            Task.FromResult(_list.FirstOrDefault(p => p.Id == id));
+
+        public Task UpsertAsync(SmbProfile profile)
+        {
+            var idx = _list.FindIndex(p => p.Id == profile.Id);
+            if (idx >= 0) _list[idx] = profile;
+            else _list.Add(profile);
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class FakeSmbBrowser : ISmbBrowser
     {
         public IReadOnlyList<SmbBrowseEntry> ItemsToReturn { get; set; } = Array.Empty<SmbBrowseEntry>();
-        public Task<IReadOnlyList<SmbBrowseEntry>> ListAsync(SmbBrowseRequest request, System.Threading.CancellationToken ct = default) =>
-            Task.FromResult(ItemsToReturn);
+        public string? ContinuationTokenToReturn { get; set; }
+        public Task<SmbBrowsePage> ListAsync(SmbBrowseRequest request, System.Threading.CancellationToken ct = default) =>
+            Task.FromResult(new SmbBrowsePage(ItemsToReturn, ContinuationTokenToReturn));
     }
 
     private sealed class FakeSmbPlaybackLocator : ISmbPlaybackLocator
@@ -439,6 +661,71 @@ public sealed class LibraryViewModelTests
             Task.FromResult(secretId ?? "sid");
         public Task<string?> TryGetAsync(string secretId) => Task.FromResult<string?>("pw");
         public Task DeleteAsync(string secretId) => Task.CompletedTask;
+    }
+
+    private sealed class TrackingSecureSecretStore : ISecureSecretStore
+    {
+        public string LastUpsertPurpose { get; private set; } = string.Empty;
+        public string? LastUpsertSecretId { get; private set; }
+        public string? LastDeletedSecretId { get; private set; }
+
+        public Task<string> UpsertAsync(string purpose, string plaintext, string? secretId = null)
+        {
+            LastUpsertPurpose = purpose;
+            LastUpsertSecretId = secretId;
+            return Task.FromResult(secretId ?? "sid");
+        }
+
+        public Task<string?> TryGetAsync(string secretId) => Task.FromResult<string?>("pw");
+
+        public Task DeleteAsync(string secretId)
+        {
+            LastDeletedSecretId = secretId;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class CancellableSmbBrowser : ISmbBrowser
+    {
+        public TaskCompletionSource<bool> FirstStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> FirstCanceled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> ReleaseSecond { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private int _calls;
+
+        public async Task<SmbBrowsePage> ListAsync(SmbBrowseRequest request, System.Threading.CancellationToken ct = default)
+        {
+            var call = System.Threading.Interlocked.Increment(ref _calls);
+            if (call == 1)
+            {
+                FirstStarted.TrySetResult(true);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(1), ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    FirstCanceled.TrySetResult(true);
+                    throw;
+                }
+                return new SmbBrowsePage(Array.Empty<SmbBrowseEntry>(), ContinuationToken: null);
+            }
+
+            await ReleaseSecond.Task;
+            return new SmbBrowsePage(new[] { new SmbBrowseEntry("a.mp4", false) }, ContinuationToken: null);
+        }
+    }
+
+    private sealed class SequencedSmbBrowser : ISmbBrowser
+    {
+        public Queue<SmbBrowsePage> Pages { get; } = new();
+
+        public Task<SmbBrowsePage> ListAsync(SmbBrowseRequest request, System.Threading.CancellationToken ct = default)
+        {
+            if (Pages.Count == 0)
+                return Task.FromResult(new SmbBrowsePage(Array.Empty<SmbBrowseEntry>(), ContinuationToken: null));
+            return Task.FromResult(Pages.Dequeue());
+        }
     }
 }
 

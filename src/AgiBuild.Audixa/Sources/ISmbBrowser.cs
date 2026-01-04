@@ -6,7 +6,7 @@ namespace AgiBuild.Audixa.Sources;
 
 public interface ISmbBrowser
 {
-    Task<IReadOnlyList<SmbBrowseEntry>> ListAsync(SmbBrowseRequest request, CancellationToken ct = default);
+    Task<SmbBrowsePage> ListAsync(SmbBrowseRequest request, CancellationToken ct = default);
 }
 
 public sealed record SmbBrowseRequest(
@@ -15,7 +15,14 @@ public sealed record SmbBrowseRequest(
     string Path,
     string? Username,
     string? Domain,
-    string? SecretId);
+    string? SecretId,
+    int PageSize = 200,
+    string? ContinuationToken = null,
+    bool ForceRefresh = false);
+
+public sealed record SmbBrowsePage(
+    IReadOnlyList<SmbBrowseEntry> Items,
+    string? ContinuationToken);
 
 public sealed record SmbBrowseEntry(
     string Name,

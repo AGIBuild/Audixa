@@ -19,7 +19,7 @@ public sealed class AndroidSmbBrowser : ISmbBrowser
         _secrets = secrets;
     }
 
-    public Task<IReadOnlyList<SmbBrowseEntry>> ListAsync(SmbBrowseRequest request, CancellationToken ct = default)
+    public Task<SmbBrowsePage> ListAsync(SmbBrowseRequest request, CancellationToken ct = default)
     {
         // SMBJ bridge call is synchronous; run on thread pool.
         return Task.Run(async () =>
@@ -29,6 +29,8 @@ public sealed class AndroidSmbBrowser : ISmbBrowser
             var password = string.IsNullOrWhiteSpace(request.SecretId)
                 ? null
                 : await _secrets.TryGetAsync(request.SecretId).ConfigureAwait(false);
+
+            ct.ThrowIfCancellationRequested();
 
             using var bridge = new SmbjBridgeInvoker();
 
@@ -42,21 +44,38 @@ public sealed class AndroidSmbBrowser : ISmbBrowser
                 request.Username,
                 password);
 
-            var list = items
-                .Select(s =>
-                {
-                    // Protocol: "D\tname" or "F\tname"
-                    var parts = s.Split('\t', 2);
-                    var isDir = parts.Length > 0 && string.Equals(parts[0], "D", StringComparison.Ordinal);
-                    var name = parts.Length == 2 ? parts[1] : s;
-                    return new SmbBrowseEntry(name, isDir);
-                })
-                .OrderByDescending(e => e.IsDirectory)
-                .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            ct.ThrowIfCancellationRequested();
 
-            return (IReadOnlyList<SmbBrowseEntry>)list;
+            var offset = ParseOffset(request.ContinuationToken);
+            var pageSize = request.PageSize <= 0 ? 200 : request.PageSize;
+
+            var end = Math.Min(items.Length, offset + pageSize);
+            var list = new List<SmbBrowseEntry>(Math.Max(0, end - offset));
+            for (var i = offset; i < end; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var s = items[i];
+                // Protocol: "D\tname" or "F\tname"
+                var parts = s.Split('\t', 2);
+                var isDir = parts.Length > 0 && string.Equals(parts[0], "D", StringComparison.Ordinal);
+                var name = parts.Length == 2 ? parts[1] : s;
+                list.Add(new SmbBrowseEntry(name, isDir));
+            }
+
+            var nextToken = end < items.Length ? end.ToString() : null;
+
+            ct.ThrowIfCancellationRequested();
+
+            return new SmbBrowsePage(list, nextToken);
         }, ct);
+    }
+
+    private static int ParseOffset(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return 0;
+        return int.TryParse(token, out var n) && n > 0 ? n : 0;
     }
 }
 

@@ -6,6 +6,7 @@ using AgiBuild.Audixa.Desktop.Sources;
 using AgiBuild.Audixa.Persistence;
 using AgiBuild.Audixa.Services;
 using AgiBuild.Audixa.Sources;
+using AgiBuild.Audixa.Sources.Impl;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AgiBuild.Audixa.Desktop;
@@ -22,7 +23,10 @@ public sealed class DesktopPlatformModule : IAudixaPlatformModule
             services.AddSingleton<ISecretProtector, WindowsDpapiSecretProtector>();
 
         // SMB browsing via UNC/local filesystem
-        services.AddSingleton<ISmbBrowser, DesktopSmbBrowser>();
+        services.AddSingleton<DesktopSmbBrowser>();
+        services.AddSingleton<ISmbBrowser>(sp => new CachedSmbBrowser(
+            sp.GetRequiredService<DesktopSmbBrowser>(),
+            sp.GetRequiredService<SmbBrowseCache>()));
         services.AddSingleton<ISmbPlaybackLocator, DesktopSmbPlaybackLocator>();
     }
 }

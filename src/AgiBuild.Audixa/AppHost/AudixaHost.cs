@@ -52,7 +52,12 @@ public static class AudixaHost
 
         // Sources (MVP: Local only; SMB later)
         services.AddSingleton<ISourceProvider, LocalFileSourceProvider>();
-        services.AddSingleton<ISmbBrowser, NullSmbBrowser>();
+        services.AddSingleton<SmbBrowseCacheOptions>(_ => SmbBrowseCacheOptions.Default);
+        services.AddSingleton<SmbBrowseCache>();
+        services.AddSingleton<NullSmbBrowser>();
+        services.AddSingleton<ISmbBrowser>(sp => new CachedSmbBrowser(
+            sp.GetRequiredService<NullSmbBrowser>(),
+            sp.GetRequiredService<SmbBrowseCache>()));
         services.AddSingleton<ISmbPlaybackLocator, NullSmbPlaybackLocator>();
 
         // Presentation adapters

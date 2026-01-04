@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
+using System.Threading;
 using AgiBuild.Audixa.Services;
 using AgiBuild.Audixa.Stores;
 using AgiBuild.Audixa.Sources;
@@ -30,6 +31,11 @@ public partial class LibraryViewModel : ViewModelBase
     private string _smbHost = string.Empty;
     private string _smbShare = string.Empty;
     private string _smbRelativePath = string.Empty;
+    private string? _smbContinuationToken;
+    private const int DefaultSmbPageSize = 200;
+
+    private CancellationTokenSource? _smbBrowseCts;
+    private int _smbBrowseVersion;
 
     public LibraryViewModel(
         ILibraryStore libraryStore,
@@ -90,12 +96,30 @@ public partial class LibraryViewModel : ViewModelBase
     [ObservableProperty]
     private SmbProfile? _selectedSmbProfile;
 
+    partial void OnSelectedSmbProfileChanged(SmbProfile? value)
+    {
+        if (value is null)
+            return;
+
+        NewSmbRootPath = value.RootPath;
+        NewSmbUsername = value.Username ?? string.Empty;
+        NewSmbDomain = value.Domain ?? string.Empty;
+        RememberSmbPassword = value.SecretId is not null;
+        NewSmbPassword = string.Empty;
+    }
+
     [ObservableProperty]
     private string _currentSmbPath = string.Empty;
 
     public ObservableCollection<SmbEntryViewModel> SmbEntries { get; } = new();
 
     public ObservableCollection<MediaItem> RecentItems { get; } = new();
+
+    [ObservableProperty]
+    private bool _isSmbLoading;
+
+    [ObservableProperty]
+    private bool _canLoadMoreSmbEntries;
 
     [RelayCommand]
     private async Task OpenLocalMp4Async()
@@ -266,6 +290,127 @@ public partial class LibraryViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private async Task UpdateSelectedSmbProfileAsync()
+    {
+        var existing = SelectedSmbProfile;
+        if (existing is null)
+            return;
+
+        var root = (NewSmbRootPath ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(root))
+            return;
+
+        var password = NewSmbPassword;
+        try
+        {
+            if (!SmbPath.TryParseRoot(root, out var host, out var share))
+            {
+                _notifications.ShowTopAlert("Invalid SMB path. Use \\\\host\\share or smb://host/share");
+                return;
+            }
+
+            var username = string.IsNullOrWhiteSpace(NewSmbUsername) ? null : NewSmbUsername.Trim();
+            var domain = string.IsNullOrWhiteSpace(NewSmbDomain) ? null : NewSmbDomain.Trim();
+
+            string? secretId = existing.SecretId;
+
+            if (RememberSmbPassword)
+            {
+                // If user typed a new password, overwrite the existing secret id (if any).
+                if (!string.IsNullOrWhiteSpace(password))
+                {
+                    try
+                    {
+                        var purpose = $"smb-password:{host}/{share}:{username ?? "(anonymous)"}";
+                        secretId = await _secrets.UpsertAsync(purpose, password.Trim(), existing.SecretId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _notifications.ShowTopAlert("Remember password failed: " + ex.Message);
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                // User chose not to remember password anymore.
+                if (!string.IsNullOrWhiteSpace(existing.SecretId))
+                {
+                    try { await _secrets.DeleteAsync(existing.SecretId); } catch { /* best effort */ }
+                }
+                secretId = null;
+            }
+
+            var updated = new SmbProfile(
+                Id: existing.Id,
+                Name: $"{host}/{share}",
+                RootPath: $"smb://{host}/{share}",
+                UpdatedAtUtc: _timeProvider.GetUtcNow(),
+                Deleted: false,
+                Host: host,
+                Share: share,
+                Username: username,
+                Domain: domain,
+                SecretId: secretId);
+
+            await _smbProfiles.UpsertAsync(updated);
+            _notifications.ShowToast("Updated", "SMB profile updated.");
+            await RefreshSmbProfilesAsync();
+
+            SelectedSmbProfile = updated;
+        }
+        finally
+        {
+            NewSmbPassword = string.Empty;
+        }
+    }
+
+    [RelayCommand]
+    private async Task DeleteSelectedSmbProfileAsync()
+    {
+        var existing = SelectedSmbProfile;
+        if (existing is null)
+            return;
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(existing.SecretId))
+            {
+                try { await _secrets.DeleteAsync(existing.SecretId); } catch { /* best effort */ }
+            }
+
+            var deleted = existing with
+            {
+                Deleted = true,
+                SecretId = null,
+                UpdatedAtUtc = _timeProvider.GetUtcNow(),
+            };
+
+            await _smbProfiles.UpsertAsync(deleted);
+            _notifications.ShowToast("Deleted", "SMB profile deleted.");
+
+            await RefreshSmbProfilesAsync();
+
+            if (SmbProfileList.Count > 0)
+                SelectedSmbProfile = SmbProfileList[0];
+            else
+                SelectedSmbProfile = null;
+
+            SmbEntries.Clear();
+            CurrentSmbPath = string.Empty;
+            _smbRelativePath = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _notifications.ShowTopAlert("Delete failed: " + ex.Message);
+        }
+        finally
+        {
+            NewSmbPassword = string.Empty;
+        }
+    }
+
+    [RelayCommand]
     private async Task BrowseSmbAsync()
     {
         var profile = SelectedSmbProfile;
@@ -280,35 +425,84 @@ public partial class LibraryViewModel : ViewModelBase
 
         _smbRelativePath = string.Empty;
         CurrentSmbPath = $"smb://{_smbHost}/{_smbShare}";
-        await LoadSmbEntriesAsync(profile);
+        _smbContinuationToken = null;
+        await LoadSmbEntriesAsync(profile, forceRefresh: false);
     }
 
-    private async Task LoadSmbEntriesAsync(SmbProfile profile)
+    [RelayCommand]
+    private async Task RefreshSmbListingAsync()
     {
-        SmbEntries.Clear();
+        var profile = SelectedSmbProfile;
+        if (profile is null)
+            return;
+        _smbContinuationToken = null;
+        await LoadSmbEntriesAsync(profile, forceRefresh: true);
+    }
+
+    [RelayCommand]
+    private async Task LoadMoreSmbAsync()
+    {
+        var profile = SelectedSmbProfile;
+        if (profile is null)
+            return;
+        if (IsSmbLoading)
+            return;
+        if (string.IsNullOrWhiteSpace(_smbContinuationToken))
+            return;
+
+        await LoadSmbEntriesAsync(profile, forceRefresh: false, append: true);
+    }
+
+    private async Task LoadSmbEntriesAsync(SmbProfile profile, bool forceRefresh)
+        => await LoadSmbEntriesAsync(profile, forceRefresh, append: false);
+
+    private async Task LoadSmbEntriesAsync(SmbProfile profile, bool forceRefresh, bool append)
+    {
+        var myVersion = Interlocked.Increment(ref _smbBrowseVersion);
+
+        var prev = _smbBrowseCts;
+        prev?.Cancel();
+        prev?.Dispose();
+
+        var myCts = new CancellationTokenSource();
+        _smbBrowseCts = myCts;
+        var ct = myCts.Token;
+
+        IsSmbLoading = true;
 
         try
         {
-            var list = await _smbBrowser.ListAsync(new SmbBrowseRequest(
+            var page = await _smbBrowser.ListAsync(new SmbBrowseRequest(
                 Host: _smbHost,
                 Share: _smbShare,
                 Path: _smbRelativePath,
                 Username: profile.Username,
                 Domain: profile.Domain,
-                SecretId: profile.SecretId));
+                SecretId: profile.SecretId,
+                PageSize: DefaultSmbPageSize,
+                ContinuationToken: append ? _smbContinuationToken : null,
+                ForceRefresh: forceRefresh), ct);
 
-            // Add a synthetic ".." entry for navigation when not at root.
-            if (!string.IsNullOrWhiteSpace(_smbRelativePath))
+            if (ct.IsCancellationRequested)
+                return;
+
+            if (!append)
             {
-                var parent = GetParentRelativePath(_smbRelativePath);
-                SmbEntries.Add(new SmbEntryViewModel(
-                    Name: "..",
-                    FullPath: parent,
-                    IsDirectory: true,
-                    OpenCommand: OpenSmbEntryCommand));
+                SmbEntries.Clear();
+
+                // Add a synthetic ".." entry for navigation when not at root.
+                if (!string.IsNullOrWhiteSpace(_smbRelativePath))
+                {
+                    var parent = GetParentRelativePath(_smbRelativePath);
+                    SmbEntries.Add(new SmbEntryViewModel(
+                        Name: "..",
+                        FullPath: parent,
+                        IsDirectory: true,
+                        OpenCommand: OpenSmbEntryCommand));
+                }
             }
 
-            foreach (var e in list)
+            foreach (var e in page.Items)
             {
                 SmbEntries.Add(new SmbEntryViewModel(
                     Name: e.Name,
@@ -316,11 +510,31 @@ public partial class LibraryViewModel : ViewModelBase
                     IsDirectory: e.IsDirectory,
                     OpenCommand: OpenSmbEntryCommand));
             }
+
+            _smbContinuationToken = page.ContinuationToken;
+            CanLoadMoreSmbEntries = !string.IsNullOrWhiteSpace(_smbContinuationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // ignore
         }
         catch (Exception ex)
         {
             _notifications.ShowTopAlert("SMB browse failed: " + ex.Message);
             _logger.LogWarning(ex, "SMB browse failed for {Host}/{Share} {Path}", _smbHost, _smbShare, _smbRelativePath);
+        }
+        finally
+        {
+            if (Volatile.Read(ref _smbBrowseVersion) == myVersion)
+                IsSmbLoading = false;
+
+            // If we're still the latest request, clean up the CTS.
+            if (Volatile.Read(ref _smbBrowseVersion) == myVersion)
+            {
+                if (ReferenceEquals(_smbBrowseCts, myCts))
+                    _smbBrowseCts = null;
+                myCts.Dispose();
+            }
         }
     }
 
@@ -335,10 +549,14 @@ public partial class LibraryViewModel : ViewModelBase
 
         if (entry.IsDirectory)
         {
+            if (IsSmbLoading)
+                return;
+
             CurrentSmbPath = entry.FullPath;
             _smbRelativePath = ToRelativePath(entry.FullPath);
             CurrentSmbPath = $"smb://{_smbHost}/{_smbShare}/{_smbRelativePath.Replace("\\", "/")}";
-            await LoadSmbEntriesAsync(profile);
+            _smbContinuationToken = null;
+            await LoadSmbEntriesAsync(profile, forceRefresh: false);
             return;
         }
 

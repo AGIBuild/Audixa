@@ -132,8 +132,8 @@ public sealed class ShellViewModelTests
 
     private sealed class FakeSmbBrowser : ISmbBrowser
     {
-        public Task<IReadOnlyList<SmbBrowseEntry>> ListAsync(SmbBrowseRequest request, System.Threading.CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyList<SmbBrowseEntry>>(Array.Empty<SmbBrowseEntry>());
+        public Task<SmbBrowsePage> ListAsync(SmbBrowseRequest request, System.Threading.CancellationToken ct = default) =>
+            Task.FromResult(new SmbBrowsePage(Array.Empty<SmbBrowseEntry>(), ContinuationToken: null));
     }
 
     private sealed class FakeSmbPlaybackLocator : ISmbPlaybackLocator

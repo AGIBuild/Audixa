@@ -5,6 +5,7 @@ using AgiBuild.Audixa.Persistence;
 using AgiBuild.Audixa.Platform;
 using AgiBuild.Audixa.Services;
 using AgiBuild.Audixa.Sources;
+using AgiBuild.Audixa.Sources.Impl;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AgiBuild.Audixa.Android;
@@ -21,7 +22,10 @@ public sealed class AndroidPlatformModule : IAudixaPlatformModule
         services.AddSingleton<ISecretProtector, AndroidKeystoreSecretProtector>();
 
         // SMB browser (Android SMBJ bridge)
-        services.AddSingleton<ISmbBrowser, AndroidSmbBrowser>();
+        services.AddSingleton<AndroidSmbBrowser>();
+        services.AddSingleton<ISmbBrowser>(sp => new CachedSmbBrowser(
+            sp.GetRequiredService<AndroidSmbBrowser>(),
+            sp.GetRequiredService<SmbBrowseCache>()));
         services.AddSingleton<ISmbPlaybackLocator, AndroidSmbPlaybackLocator>();
     }
 }

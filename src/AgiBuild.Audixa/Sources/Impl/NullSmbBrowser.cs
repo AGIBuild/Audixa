@@ -7,7 +7,7 @@ namespace AgiBuild.Audixa.Sources.Impl;
 
 public sealed class NullSmbBrowser : ISmbBrowser
 {
-    public Task<IReadOnlyList<SmbBrowseEntry>> ListAsync(SmbBrowseRequest request, CancellationToken ct = default) =>
+    public Task<SmbBrowsePage> ListAsync(SmbBrowseRequest request, CancellationToken ct = default) =>
         throw new NotSupportedException("SMB browsing is not configured for this platform.");
 }
 
