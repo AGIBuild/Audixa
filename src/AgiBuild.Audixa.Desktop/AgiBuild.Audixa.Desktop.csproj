@@ -21,6 +21,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Web.WebView2" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+    <PackageReference Include="Velopack" />
   </ItemGroup>
 
   <ItemGroup>

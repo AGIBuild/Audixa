@@ -31,9 +31,13 @@
     "ExecutableTarget": {
       "type": "string",
       "enum": [
+        "Build",
         "Clean",
         "Compile",
-        "Restore"
+        "Publish",
+        "Restore",
+        "Run",
+        "Test"
       ]
     },
     "Verbosity": {
@@ -111,6 +115,18 @@
           "type": "string",
           "description": "Configuration to build - Default is 'Debug' (local) or 'Release' (server)",
           "$ref": "#/definitions/Configuration"
+        },
+        "Platform": {
+          "type": "string",
+          "description": "Target platform for Run/Publish: windows, macos, linux, android, ios, all"
+        },
+        "Runtime": {
+          "type": "string",
+          "description": "Runtime identifier override (e.g., win-x64, osx-arm64, android-arm64)"
+        },
+        "Version": {
+          "type": "string",
+          "description": "Application version for Velopack packaging (e.g., 1.0.0)"
         }
       }
     },
