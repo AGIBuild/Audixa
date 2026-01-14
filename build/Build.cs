@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -390,23 +391,43 @@ class AudixaBuild : NukeBuild
     }
 
     /// <summary>
-    /// Runs the Velopack CLI (vpk) via dotnet tool.
+    /// Runs the Velopack CLI (vpk).
     /// Ensure vpk is installed: dotnet tool install -g vpk
     /// </summary>
     static void RunVpk(string arguments)
     {
-        var toolPath = ToolResolver.TryGetEnvironmentTool("vpk");
+        Serilog.Log.Information("Running: vpk {Args}", arguments);
 
-        if (toolPath != null)
+        var psi = new ProcessStartInfo
         {
-            Serilog.Log.Information("Running: vpk {Args}", arguments);
-            toolPath.Invoke(arguments);
-        }
-        else
+            FileName = "vpk",
+            Arguments = arguments,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
+        using var process = Process.Start(psi);
+        if (process == null)
+            throw new InvalidOperationException("Failed to start vpk process");
+
+        process.OutputDataReceived += (_, e) =>
         {
-            // Fallback: try running via dotnet tool run (for local tool manifest)
-            Serilog.Log.Information("Running: dotnet vpk {Args}", arguments);
-            DotNet($"vpk {arguments}");
-        }
+            if (!string.IsNullOrEmpty(e.Data))
+                Serilog.Log.Information(e.Data);
+        };
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (!string.IsNullOrEmpty(e.Data))
+                Serilog.Log.Warning(e.Data);
+        };
+
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+        process.WaitForExit();
+
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException($"vpk exited with code {process.ExitCode}");
     }
 }

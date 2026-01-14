@@ -32,6 +32,6 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.15" />
     <!-- Installer & auto-update framework (MIT) -->
-    <PackageVersion Include="Velopack" Version="0.0.1096" />
+    <PackageVersion Include="Velopack" Version="0.0.1251" />
   </ItemGroup>
 </Project>
