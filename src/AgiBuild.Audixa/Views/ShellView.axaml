@@ -8,48 +8,70 @@
              x:Class="AgiBuild.Audixa.Views.ShellView"
              x:DataType="vm:ShellViewModel">
   <Grid RowDefinitions="Auto,*">
-    <!-- Top navigation (prototype-aligned) -->
-    <Border Background="#1a1625" BorderBrush="#3a2d4a" BorderThickness="0,0,0,1" Padding="16,10">
+    <!-- Header Navigation with Gradient -->
+    <Border Background="{StaticResource AudixaHeaderGradient}"
+            Padding="20,14"
+            BoxShadow="0 4 15 0 #80000000">
       <DockPanel LastChildFill="True">
-        <TextBlock DockPanel.Dock="Left"
-                   Text="Audixa"
-                   FontSize="22"
-                   FontWeight="Bold"
-                   Foreground="#ff00ff"
-                   VerticalAlignment="Center" />
+        <!-- Logo -->
+        <StackPanel DockPanel.Dock="Left"
+                    Orientation="Horizontal"
+                    Spacing="8"
+                    VerticalAlignment="Center">
+          <TextBlock Text="⚡"
+                     FontSize="24"
+                     Foreground="{StaticResource AudixaAccentBrush}"
+                     VerticalAlignment="Center"/>
+          <TextBlock Text="Audixa"
+                     FontSize="22"
+                     FontWeight="Bold"
+                     Foreground="{StaticResource AudixaTextPrimaryBrush}"
+                     VerticalAlignment="Center"
+                     LetterSpacing="1"/>
+        </StackPanel>
 
-        <ItemsControl DockPanel.Dock="Right" ItemsSource="{Binding Pages}">
+        <!-- Navigation Tabs -->
+        <ItemsControl DockPanel.Dock="Right"
+                      ItemsSource="{Binding Pages}"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Center">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <StackPanel Orientation="Horizontal" Spacing="14"/>
+              <StackPanel Orientation="Horizontal" Spacing="6"/>
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:ShellViewModel+NavigationItem">
-              <Button Content="{Binding Title}"
-                      Command="{Binding NavigateCommand}"
+              <Button Command="{Binding NavigateCommand}"
                       CommandParameter="{Binding ViewModel}"
-                      Background="Transparent"
-                      BorderThickness="0"
-                      Foreground="#e0e0e0"
-                      Padding="10,6"/>
+                      Classes="audixa-ghost"
+                      Padding="14,8">
+                <TextBlock Text="{Binding Title}"
+                           FontSize="14"
+                           FontWeight="Medium"/>
+              </Button>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <!-- Spacer -->
+        <Panel/>
       </DockPanel>
     </Border>
 
-    <!-- Content + overlays -->
+    <!-- Content + Overlays -->
     <Grid Grid.Row="1">
       <Grid RowDefinitions="*,Auto">
-        <ContentControl Content="{Binding CurrentPage}" />
+        <!-- Main Content Area -->
+        <ContentControl Content="{Binding CurrentPage}"
+                        Background="{StaticResource AudixaBgDeepBrush}"/>
 
-        <!-- Mini player (placeholder, always visible for now) -->
-        <views:MiniPlayerView Grid.Row="1" DataContext="{Binding MiniPlayer}" />
+        <!-- Mini Player -->
+        <views:MiniPlayerView Grid.Row="1" DataContext="{Binding MiniPlayer}"/>
       </Grid>
 
-      <!-- Notifications overlay -->
-      <views:NotificationHostView DataContext="{Binding Notifications}" />
+      <!-- Notifications Overlay -->
+      <views:NotificationHostView DataContext="{Binding Notifications}"/>
     </Grid>
   </Grid>
 </UserControl>

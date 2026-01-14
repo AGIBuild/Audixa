@@ -77,6 +77,15 @@ public partial class LibraryViewModel : ViewModelBase
     private string _title = "Library";
 
     [ObservableProperty]
+    private bool _isSmbPanelExpanded;
+
+    [RelayCommand]
+    private void ToggleSmbPanel()
+    {
+        IsSmbPanelExpanded = !IsSmbPanelExpanded;
+    }
+
+    [ObservableProperty]
     private string _newSmbRootPath = @"\\server\share";
 
     [ObservableProperty]

@@ -11,6 +11,6 @@ public interface INotificationService
     void ShowTopAlert(string message);
 }
 
-public sealed record ToastNotification(string Title, string Message);
+public sealed record ToastNotification(string Title, string Message, string? Icon = null);
 
 

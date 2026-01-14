@@ -12,32 +12,103 @@
     <conv:BoolToPlayPauseTextConverter x:Key="BoolToPlayPauseTextConverter" />
   </UserControl.Resources>
 
-  <Border Background="#240524"
-          BorderBrush="#33ff00ff"
+  <Border Background="{StaticResource AudixaBgPanelBrush}"
+          BorderBrush="{StaticResource AudixaAccentBorder20}"
           BorderThickness="0,1,0,0"
-          Padding="14"
+          Height="72"
           IsVisible="{Binding State.CurrentItem, Converter={StaticResource IsNotNullConverter}}">
-    <DockPanel LastChildFill="True">
-      <TextBlock DockPanel.Dock="Left"
-                 Text="▶"
-                 FontSize="18"
-                 Margin="0,0,12,0"
-                 VerticalAlignment="Center"
-                 Foreground="#ff00ff" />
+    <Grid>
+      <!-- Progress Bar on Top -->
+      <Border VerticalAlignment="Top"
+              Height="3"
+              Background="#1Affffff"
+              Margin="0,-1,0,0">
+        <Border Background="{StaticResource AudixaAccentBrush}"
+                HorizontalAlignment="Left"
+                Width="180"
+                CornerRadius="0,2,2,0">
+          <Border.Effect>
+            <DropShadowEffect BlurRadius="10"
+                              Color="#FF00FF"
+                              OffsetX="0"
+                              OffsetY="0"
+                              Opacity="0.6"/>
+          </Border.Effect>
+        </Border>
+      </Border>
 
-      <StackPanel DockPanel.Dock="Left" Spacing="2" Margin="0,0,12,0">
-        <TextBlock Text="{Binding State.CurrentItem.DisplayName}" FontWeight="SemiBold" Foreground="White"/>
-        <TextBlock Text="{Binding State.Position, StringFormat={}{0:mm\\:ss}}"
-                   Opacity="0.8"
-                   Foreground="#ff00ff"
-                   FontSize="12" />
-      </StackPanel>
+      <!-- Content -->
+      <DockPanel Margin="20,0">
+        <!-- Cover / Icon -->
+        <Border DockPanel.Dock="Left"
+                Width="46"
+                Height="46"
+                Background="{StaticResource AudixaBgCardBrush}"
+                CornerRadius="6"
+                Margin="0,0,16,0">
+          <TextBlock Text="📺"
+                     FontSize="20"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center"/>
+        </Border>
 
-      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-        <Button Content="{Binding State.IsPlaying, Converter={StaticResource BoolToPlayPauseTextConverter}}"
-                Command="{Binding TogglePlayPauseCommand}"
-                Padding="10,6"/>
-      </StackPanel>
-    </DockPanel>
+        <!-- Right: Controls -->
+        <StackPanel DockPanel.Dock="Right"
+                    Orientation="Horizontal"
+                    Spacing="8"
+                    VerticalAlignment="Center">
+          <Button Content="⏮"
+                  Classes="audixa-icon"
+                  FontSize="16"/>
+          <Button Classes="audixa-play"
+                  Width="42"
+                  Height="42"
+                  Command="{Binding TogglePlayPauseCommand}">
+            <TextBlock Text="{Binding State.IsPlaying, Converter={StaticResource BoolToPlayPauseTextConverter}}"
+                       FontSize="16"/>
+          </Button>
+          <Button Content="⏭"
+                  Classes="audixa-icon"
+                  FontSize="16"/>
+          <Button Content="📑"
+                  Classes="audixa-icon"
+                  FontSize="16"
+                  ToolTip.Tip="Expand Playlist"
+                  Margin="8,0,0,0"/>
+        </StackPanel>
+
+        <!-- Info -->
+        <StackPanel Spacing="4"
+                    VerticalAlignment="Center"
+                    Margin="0,0,20,0">
+          <TextBlock Text="{Binding State.CurrentItem.DisplayName}"
+                     FontWeight="SemiBold"
+                     FontSize="14"
+                     Foreground="{StaticResource AudixaTextPrimaryBrush}"
+                     TextTrimming="CharacterEllipsis"
+                     MaxWidth="400"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="{Binding State.Position, StringFormat={}{0:mm\\:ss}}"
+                       FontFamily="Consolas, monospace"
+                       FontSize="12"
+                       Foreground="{StaticResource AudixaAccentBrush}"/>
+            <TextBlock Text="/"
+                       FontSize="12"
+                       Foreground="{StaticResource AudixaTextDimBrush}"/>
+            <TextBlock Text="{Binding State.Duration, StringFormat={}{0:mm\\:ss}}"
+                       FontFamily="Consolas, monospace"
+                       FontSize="12"
+                       Foreground="{StaticResource AudixaTextDimBrush}"/>
+            <TextBlock Text="•"
+                       FontSize="12"
+                       Foreground="{StaticResource AudixaTextDimBrush}"
+                       Margin="4,0"/>
+            <TextBlock Text="NAS"
+                       FontSize="12"
+                       Foreground="{StaticResource AudixaTextSecondaryBrush}"/>
+          </StackPanel>
+        </StackPanel>
+      </DockPanel>
+    </Grid>
   </Border>
 </UserControl>
