@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import styles from '../../app.module.css';
 
 type PlayerTimelineProps = {
@@ -6,6 +7,7 @@ type PlayerTimelineProps = {
   showMarkerB: boolean;
   markerAPosition: number;
   markerBPosition: number;
+  onSeek?: (value: number) => void;
 };
 
 export function PlayerTimeline({
@@ -14,9 +16,20 @@ export function PlayerTimeline({
   showMarkerB,
   markerAPosition,
   markerBPosition,
+  onSeek,
 }: PlayerTimelineProps) {
+  const handleClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (!onSeek) {
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = rect.width === 0 ? 0 : (event.clientX - rect.left) / rect.width;
+    const percent = Math.max(0, Math.min(100, ratio * 100));
+    onSeek(percent);
+  };
+
   return (
-    <div className={styles.progressTrack}>
+    <div className={styles.progressTrack} onClick={handleClick} role="presentation">
       <div className={styles.progressActive} style={{ width: `${progress}%` }} />
       <div
         className={`${styles.abMarker} ${showMarkerA ? styles.abMarkerActive : ''}`}

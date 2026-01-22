@@ -4,31 +4,52 @@ import { PlayerTransport } from './PlayerTransport';
 
 type PlayerControlsProps = {
   maskLabel: string;
-  abState: number;
+  isPlaying: boolean;
+  playbackRate: number;
+  progress: number;
+  loopState: number;
+  loopA: number;
+  loopB: number;
   onMaskToggle: () => void;
-  onAbToggle: () => void;
+  onTogglePlay: () => void;
+  onToggleLoop: () => void;
+  onSeek: (value: number) => void;
+  onCycleRate: () => void;
 };
 
 export function PlayerControls({
   maskLabel,
-  abState,
+  isPlaying,
+  playbackRate,
+  progress,
+  loopState,
+  loopA,
+  loopB,
   onMaskToggle,
-  onAbToggle,
+  onTogglePlay,
+  onToggleLoop,
+  onSeek,
+  onCycleRate,
 }: PlayerControlsProps) {
   return (
     <div className={styles.controlsArea}>
       <PlayerTimeline
-        progress={38}
-        showMarkerA={abState >= 1}
-        showMarkerB={abState >= 2}
-        markerAPosition={30}
-        markerBPosition={46}
+        progress={progress}
+        showMarkerA={loopState >= 1}
+        showMarkerB={loopState >= 2}
+        markerAPosition={loopA}
+        markerBPosition={loopB}
+        onSeek={onSeek}
       />
       <PlayerTransport
         maskLabel={maskLabel}
-        abState={abState}
+        isPlaying={isPlaying}
+        playbackRate={playbackRate}
+        loopState={loopState}
         onMaskToggle={onMaskToggle}
-        onAbToggle={onAbToggle}
+        onTogglePlay={onTogglePlay}
+        onToggleLoop={onToggleLoop}
+        onCycleRate={onCycleRate}
       />
     </div>
   );

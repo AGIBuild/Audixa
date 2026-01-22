@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react';
 import styles from './app.module.css';
 import {
   listeningItems,
@@ -12,6 +11,10 @@ import { LibraryScreen } from './screens/LibraryScreen';
 import { ListeningScreen } from './screens/ListeningScreen';
 import { PlayerScreen } from './screens/PlayerScreen';
 import { VocabularyScreen } from './screens/VocabularyScreen';
+import { getMaskLabel, useUiStore } from './state/uiStore';
+import { usePlayerStore } from './state/playerStore';
+import { usePlayerTicker } from './state/usePlayerTicker';
+import { useSubtitleSync } from './state/useSubtitleSync';
 
 const screens = [
   { id: 'library', label: 'Library' },
@@ -23,17 +26,36 @@ const screens = [
 type ScreenId = (typeof screens)[number]['id'];
 
 export function App() {
-  const [activeScreen, setActiveScreen] = useState<ScreenId>('library');
-  const [maskState, setMaskState] = useState(0);
-  const [abState, setAbState] = useState(0);
-  const [activeSubtitle, setActiveSubtitle] = useState('s2');
-  const [listeningFilter, setListeningFilter] = useState('All');
-  const [vocabTab, setVocabTab] = useState('Vocabulary');
+  const {
+    activeScreen,
+    maskState,
+    activeSubtitle,
+    listeningFilter,
+    vocabTab,
+    setActiveScreen,
+    toggleMask,
+    setActiveSubtitle,
+    setListeningFilter,
+    setVocabTab,
+  } = useUiStore();
 
-  const maskLabel = useMemo(() => {
-    const labels = ['Mask: Off', 'Mask: Hide CN', 'Mask: Hide EN', 'Mask: Blind'];
-    return labels[maskState];
-  }, [maskState]);
+  const maskLabel = getMaskLabel(maskState);
+
+  const {
+    isPlaying,
+    playbackRate,
+    progress,
+    loopState,
+    loopA,
+    loopB,
+    togglePlay,
+    toggleLoop,
+    setProgress,
+    cyclePlaybackRate,
+  } = usePlayerStore();
+
+  usePlayerTicker();
+  useSubtitleSync(subtitleItems);
 
   return (
     <div className={styles.appShell}>
@@ -65,9 +87,17 @@ export function App() {
             activeSubtitle={activeSubtitle}
             maskState={maskState}
             maskLabel={maskLabel}
-            abState={abState}
-            onMaskToggle={() => setMaskState((state) => (state + 1) % 4)}
-            onAbToggle={() => setAbState((state) => (state + 1) % 3)}
+            isPlaying={isPlaying}
+            playbackRate={playbackRate}
+            progress={progress}
+            loopState={loopState}
+            loopA={loopA}
+            loopB={loopB}
+            onMaskToggle={toggleMask}
+            onTogglePlay={togglePlay}
+            onToggleLoop={toggleLoop}
+            onSeek={setProgress}
+            onCycleRate={cyclePlaybackRate}
             onSelectSubtitle={setActiveSubtitle}
           />
         )}

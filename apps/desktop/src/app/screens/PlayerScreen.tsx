@@ -9,9 +9,17 @@ type PlayerScreenProps = {
   activeSubtitle: string;
   maskState: number;
   maskLabel: string;
-  abState: number;
+  isPlaying: boolean;
+  playbackRate: number;
+  progress: number;
+  loopState: number;
+  loopA: number;
+  loopB: number;
   onMaskToggle: () => void;
-  onAbToggle: () => void;
+  onTogglePlay: () => void;
+  onToggleLoop: () => void;
+  onSeek: (value: number) => void;
+  onCycleRate: () => void;
   onSelectSubtitle: (id: string) => void;
 };
 
@@ -20,9 +28,17 @@ export function PlayerScreen({
   activeSubtitle,
   maskState,
   maskLabel,
-  abState,
+  isPlaying,
+  playbackRate,
+  progress,
+  loopState,
+  loopA,
+  loopB,
   onMaskToggle,
-  onAbToggle,
+  onTogglePlay,
+  onToggleLoop,
+  onSeek,
+  onCycleRate,
   onSelectSubtitle,
 }: PlayerScreenProps) {
   return (
@@ -43,9 +59,17 @@ export function PlayerScreen({
 
         <PlayerControls
           maskLabel={maskLabel}
-          abState={abState}
+          isPlaying={isPlaying}
+          playbackRate={playbackRate}
+          progress={progress}
+          loopState={loopState}
+          loopA={loopA}
+          loopB={loopB}
           onMaskToggle={onMaskToggle}
-          onAbToggle={onAbToggle}
+          onTogglePlay={onTogglePlay}
+          onToggleLoop={onToggleLoop}
+          onSeek={onSeek}
+          onCycleRate={onCycleRate}
         />
       </div>
     </section>

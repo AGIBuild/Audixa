@@ -5,16 +5,24 @@ import { PrimaryButton } from '../atoms/PrimaryButton';
 
 type PlayerTransportProps = {
   maskLabel: string;
-  abState: number;
+  isPlaying: boolean;
+  playbackRate: number;
+  loopState: number;
   onMaskToggle: () => void;
-  onAbToggle: () => void;
+  onTogglePlay: () => void;
+  onToggleLoop: () => void;
+  onCycleRate: () => void;
 };
 
 export function PlayerTransport({
   maskLabel,
-  abState,
+  isPlaying,
+  playbackRate,
+  loopState,
   onMaskToggle,
-  onAbToggle,
+  onTogglePlay,
+  onToggleLoop,
+  onCycleRate,
 }: PlayerTransportProps) {
   return (
     <div className={styles.controlsRow}>
@@ -22,20 +30,24 @@ export function PlayerTransport({
         <AppButton variant="secondary" onClick={onMaskToggle}>
           {maskLabel}
         </AppButton>
-        <span className={styles.mutedText}>1.0x</span>
+        <AppButton variant="secondary" onClick={onCycleRate}>
+          Rate {playbackRate.toFixed(1)}x
+        </AppButton>
       </div>
       <div className={styles.mainControls}>
         <IconButton>Prev</IconButton>
-        <PrimaryButton>Play</PrimaryButton>
+        <PrimaryButton onClick={onTogglePlay}>
+          {isPlaying ? 'Pause' : 'Play'}
+        </PrimaryButton>
         <IconButton>Next</IconButton>
       </div>
       <div className={styles.rightControls}>
         <AppButton
           variant="ab"
-          className={`${abState === 1 ? styles.abButtonArmed : ''} ${
-            abState === 2 ? styles.abButtonActive : ''
+          className={`${loopState === 1 ? styles.abButtonArmed : ''} ${
+            loopState === 2 ? styles.abButtonActive : ''
           }`}
-          onClick={onAbToggle}
+          onClick={onToggleLoop}
         >
           AB
         </AppButton>
