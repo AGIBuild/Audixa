@@ -1,0 +1,24 @@
+:root {
+  color-scheme: dark;
+  --bg-dark: #0f0b15;
+  --bg-panel: #1a1625;
+  --primary: #9d4edd;
+  --accent: #ff00ff;
+  --text-main: #e0e0e0;
+  --text-dim: #8a8a9b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text-main);
+}
+
+#root {
+  min-height: 100vh;
+}

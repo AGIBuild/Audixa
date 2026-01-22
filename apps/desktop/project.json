@@ -1,0 +1,23 @@
+{
+  "name": "desktop",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/desktop/src",
+  "projectType": "application",
+  "tags": ["type:app", "scope:desktop"],
+  "// targets": "to see all targets run: nx show project desktop --web",
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm -w exec tauri dev",
+        "cwd": "apps/desktop"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/desktop/tsconfig.app.json --noEmit"
+      }
+    }
+  }
+}

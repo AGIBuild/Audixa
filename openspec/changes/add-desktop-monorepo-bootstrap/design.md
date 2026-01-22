@@ -28,6 +28,11 @@ Audixa is desktop-first initially. The project will grow into a multi-app, multi
 - `packages/ui`: shared UI components and theme
 - `packages/utils`: shared utilities/types
 
+## Architecture Alignment
+- Enforce the layered boundary from `architecture` via Nx module rules (UI / Cross-platform Core / Native Playback Core).
+- Keep player contracts in `packages/core` as the single source of truth for JS/native interop.
+- Treat the Tauri host (Rust) as the Native Playback Core boundary for desktop, even if mocked initially.
+
 ## Boundary Rules (high level)
 - Apps may depend on packages; packages should not depend on apps.
 - UI should not implement domain engines; it consumes `packages/core` interfaces.

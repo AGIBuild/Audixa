@@ -29,6 +29,17 @@ The system SHALL enforce dependency boundaries to prevent architecture drift and
 - **WHEN** a UI component needs subtitle or learning domain behavior
 - **THEN** it consumes `packages/core` interfaces rather than implementing its own engine logic
 
+### Requirement: Architecture Layer Boundaries
+The system SHALL define module boundary rules that reflect the layered architecture (UI / Cross-platform Core / Native Playback Core) and prevent reverse dependencies.
+
+#### Scenario: Core does not depend on UI
+- **WHEN** a module is part of the Cross-platform Core
+- **THEN** it MUST NOT depend on UI-layer packages or app code
+
+#### Scenario: Apps depend on packages only
+- **WHEN** a module is part of an app under `apps/`
+- **THEN** it MAY depend on `packages/core`, `packages/ui`, and `packages/utils` but MUST NOT depend on other apps
+
 ### Requirement: Deterministic Workspace Commands
 The workspace SHALL provide deterministic commands for common workflows (build/test/lint/typecheck) suitable for CI execution.
 

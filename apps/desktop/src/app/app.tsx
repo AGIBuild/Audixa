@@ -1,0 +1,117 @@
+import { useMemo, useState } from 'react';
+import styles from './app.module.css';
+import {
+  listeningItems,
+  recentItems,
+  sources,
+  subtitleItems,
+  vocabItems,
+} from './data';
+import { AppButton } from './components/atoms/AppButton';
+import { LibraryScreen } from './screens/LibraryScreen';
+import { ListeningScreen } from './screens/ListeningScreen';
+import { PlayerScreen } from './screens/PlayerScreen';
+import { VocabularyScreen } from './screens/VocabularyScreen';
+
+const screens = [
+  { id: 'library', label: 'Library' },
+  { id: 'player', label: 'Player' },
+  { id: 'listening', label: 'Listening Library' },
+  { id: 'vocabulary', label: 'Vocabulary' },
+] as const;
+
+type ScreenId = (typeof screens)[number]['id'];
+
+export function App() {
+  const [activeScreen, setActiveScreen] = useState<ScreenId>('library');
+  const [maskState, setMaskState] = useState(0);
+  const [abState, setAbState] = useState(0);
+  const [activeSubtitle, setActiveSubtitle] = useState('s2');
+  const [listeningFilter, setListeningFilter] = useState('All');
+  const [vocabTab, setVocabTab] = useState('Vocabulary');
+
+  const maskLabel = useMemo(() => {
+    const labels = ['Mask: Off', 'Mask: Hide CN', 'Mask: Hide EN', 'Mask: Blind'];
+    return labels[maskState];
+  }, [maskState]);
+
+  return (
+    <div className={styles.appShell}>
+      <header className={styles.topNav}>
+        <div className={styles.logo}>Audixa</div>
+        <nav className={styles.navLinks}>
+          {screens.map((screen) => (
+            <AppButton
+              key={screen.id}
+              variant="nav"
+              isActive={activeScreen === screen.id}
+              activeClassName={styles.navButtonActive}
+              onClick={() => setActiveScreen(screen.id)}
+            >
+              {screen.label}
+            </AppButton>
+          ))}
+        </nav>
+      </header>
+
+      <main className={styles.mainArea}>
+        {activeScreen === 'library' && (
+          <LibraryScreen sources={sources} recentItems={recentItems} />
+        )}
+
+        {activeScreen === 'player' && (
+          <PlayerScreen
+            subtitleItems={subtitleItems}
+            activeSubtitle={activeSubtitle}
+            maskState={maskState}
+            maskLabel={maskLabel}
+            abState={abState}
+            onMaskToggle={() => setMaskState((state) => (state + 1) % 4)}
+            onAbToggle={() => setAbState((state) => (state + 1) % 3)}
+            onSelectSubtitle={setActiveSubtitle}
+          />
+        )}
+
+        {activeScreen === 'listening' && (
+          <ListeningScreen
+            listeningItems={listeningItems}
+            listeningFilter={listeningFilter}
+            onFilterChange={setListeningFilter}
+          />
+        )}
+
+        {activeScreen === 'vocabulary' && (
+          <VocabularyScreen
+            vocabItems={vocabItems}
+            vocabTab={vocabTab}
+            onTabChange={setVocabTab}
+          />
+        )}
+      </main>
+    </div>
+  );
+}
+
+export default App;
+
+if (import.meta.vitest) {
+  // add tests related to your file here
+  // For more information please visit the Vitest docs site here: https://vitest.dev/guide/in-source.html
+
+  const { it, expect, beforeEach } = import.meta.vitest;
+  let render: typeof import('@testing-library/react').render;
+
+  beforeEach(async () => {
+    render = (await import('@testing-library/react')).render;
+  });
+
+  it('should render successfully', () => {
+    const { baseElement } = render(<App />);
+    expect(baseElement).toBeTruthy();
+  });
+
+  it('should show the default screen', () => {
+    const { getByText } = render(<App />);
+    expect(getByText('Add Source')).toBeTruthy();
+  });
+}

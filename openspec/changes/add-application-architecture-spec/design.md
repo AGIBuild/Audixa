@@ -22,6 +22,30 @@ Audixa is a subtitle-first learning player across mobile (iOS/Android) and deskt
 - Decision: Desktop shell preference is Tauri, with Electron as fallback.
   - Why: Smaller footprint and strong native integration story; keep Electron as contingency.
 
+## Architecture Snapshot (Phase 1)
+- Target platforms: iOS, Android, Windows, macOS.
+- Layers:
+  - UI Layer: platform UI (RN for mobile; desktop shell UI).
+  - Cross-platform Core: shared learning/subtitle/business logic + storage abstraction + player contract types.
+  - Native Playback Core: platform-owned player implementation and canonical clock.
+- Engines:
+  - Subtitle Engine: parsing/normalization, sentence model, time indexing, subtitle offset.
+  - Learning Engine: event capture, persistence boundary, aggregations/stats, collections/vocabulary workflows.
+
+## Interop Contract (Minimum)
+- Commands: load/play/pause/seek/setRate/setLoop/selectTrack/setSubtitleOffsetMs.
+- Events: time(nowMs, seq), state, buffering, seeked, tracksChanged, ended, error(code/message/recoverable/category).
+- Timing: canonical clock is native; time events are periodic and ordered; seek emits seeked before subsequent time ticks.
+
+## Storage Strategy (Phased)
+- Phase 1: local-first single-writer store (platform-appropriate local DB such as SQLite) behind a core storage abstraction.
+- Later: optional sync (explicit user enablement), with privacy constraints and clearly defined off-device data.
+
+## Performance Budgets (Initial)
+- Seek settle tolerance: ±50ms; p95 settle time target <= 250ms for local media.
+- Loop boundary tolerance: ±40ms.
+- Subtitle drift budget: <= 80ms (p95) relative to native canonical clock.
+
 ## Risks / Trade-offs
 - Risk: JS/native event ordering issues cause subtitle drift.
   - Mitigation: Define explicit event timing guarantees and test them end-to-end.
