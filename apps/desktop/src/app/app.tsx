@@ -556,12 +556,15 @@ export function App() {
     }
   }, [activeSubtitle, handleSelectSubtitle, subtitleItems]);
 
-  const handleToggleFullscreen = useCallback(() => {
+  const handleToggleFullscreen = useCallback((target?: HTMLElement | null) => {
     if (document.fullscreenElement) {
       void document.exitFullscreen();
       return;
     }
-    void document.documentElement.requestFullscreen();
+    const element = target ?? document.documentElement;
+    if ('requestFullscreen' in element) {
+      void element.requestFullscreen();
+    }
   }, []);
 
   const handleCloseMiniPlayer = useCallback(() => {

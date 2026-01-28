@@ -1,5 +1,10 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { appDataDir, join } from '@tauri-apps/api/path';
+import { mkdir, readDir, remove, rename } from '@tauri-apps/plugin-fs';
 import type { MediaKind } from '../data/types';
+import { ensureFfmpeg } from '../data/ffmpegManager';
+import { runFfmpeg, runFfprobe } from '../data/ffmpegRunner';
+import { getFileName, getFileStem } from '../data/utils';
 
 export type PlaybackStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
 
@@ -32,6 +37,7 @@ export type PlaybackAdapter = {
 export function createHtmlMediaAdapter(): PlaybackAdapter {
   let element: HTMLMediaElement | null = null;
   let cleanup: (() => void) | null = null;
+  let loadSeq = 0;
   let state: PlaybackState = {
     status: 'idle',
     currentTime: 0,
@@ -105,8 +111,16 @@ export function createHtmlMediaAdapter(): PlaybackAdapter {
   };
 
   const applySource = async (target: HTMLMediaElement, source: PlaybackSource) => {
-    const resolved = isRemoteUrl(source.path) ? source.path : convertFileSrc(source.path);
-    target.src = resolved;
+    const seq = (loadSeq += 1);
+    const resolved = await resolveSourcePath(source);
+    if (seq !== loadSeq) {
+      return;
+    }
+    if (resolved.warning) {
+      setState({ error: resolved.warning });
+    }
+    const src = isRemoteUrl(resolved.path) ? resolved.path : convertFileSrc(resolved.path);
+    target.src = src;
     target.load();
   };
 
@@ -118,6 +132,9 @@ export function createHtmlMediaAdapter(): PlaybackAdapter {
     try {
       await element.play();
     } catch (error) {
+      if (isPlayInterruptedByLoad(error)) {
+        return;
+      }
       const message =
         error instanceof Error && error.message ? error.message : 'Playback failed.';
       setState({ status: 'error', error: message });
@@ -203,4 +220,258 @@ export function createHtmlMediaAdapter(): PlaybackAdapter {
 
 function isRemoteUrl(value: string) {
   return value.startsWith('http://') || value.startsWith('https://');
+}
+
+function isPlayInterruptedByLoad(error: unknown) {
+  const message = error instanceof Error && error.message ? error.message : '';
+  if (message && /interrupted by a new load request/i.test(message)) {
+    return true;
+  }
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
+function isMkvPath(value: string) {
+  return value.toLowerCase().endsWith('.mkv');
+}
+
+type ResolvedSource = {
+  path: string;
+  warning: string | null;
+};
+
+const remuxTasks = new Map<string, Promise<string>>();
+
+async function resolveSourcePath(source: PlaybackSource): Promise<ResolvedSource> {
+  if (isRemoteUrl(source.path)) {
+    return { path: source.path, warning: null };
+  }
+  if (source.kind !== 'video' || !isMkvPath(source.path)) {
+    return { path: source.path, warning: null };
+  }
+  try {
+    const remuxedPath = await ensureRemuxedPath(source.path);
+    return { path: remuxedPath, warning: null };
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : 'Failed to remux MKV for playback.';
+    return { path: source.path, warning: message };
+  }
+}
+
+async function ensureRemuxedPath(sourcePath: string) {
+  const cached = remuxTasks.get(sourcePath);
+  if (cached) {
+    return cached;
+  }
+  const task = (async () => {
+    const codec = await getPrimaryVideoCodec(sourcePath);
+    const shouldTranscode = codec !== 'h264';
+    const cacheDir = await getMediaCacheDir();
+    const mode = shouldTranscode ? 'x264' : 'copy';
+    const baseName = getFileStem(getFileName(sourcePath));
+    const safeName = sanitizeFileName(baseName || 'video');
+    const outputName = `${safeName}-${hashPath(
+      `${sourcePath}:${mode}`,
+    )}.mp4`;
+    const outputPath = await join(cacheDir, outputName);
+    if (await fileExists(cacheDir, outputName)) {
+      if (await isValidMediaFile(outputPath)) {
+        return outputPath;
+      }
+      await remove(outputPath);
+    }
+    const { ffmpegPath } = await ensureFfmpeg();
+    const tempPath = await join(cacheDir, `${outputName}.tmp-${Date.now()}.mp4`);
+    if (shouldTranscode) {
+      const result = await runFfmpeg(ffmpegPath, [
+        '-y',
+        '-v',
+        'error',
+        '-i',
+        sourcePath,
+        '-map',
+        '0:v:0',
+        '-map',
+        '0:a:0?',
+        '-c:v',
+        'libx264',
+        '-preset',
+        'veryfast',
+        '-crf',
+        '20',
+        '-c:a',
+        'aac',
+        '-b:a',
+        '192k',
+        '-movflags',
+        '+faststart',
+        tempPath,
+      ]);
+      if (result.code !== 0) {
+        await safeRemove(tempPath);
+        throw new Error(
+          `Failed to transcode MKV to MP4: ${result.stderr || 'Unknown error'}`,
+        );
+      }
+      if (!(await isValidMediaFile(tempPath))) {
+        await safeRemove(tempPath);
+        throw new Error('Transcoded file is invalid.');
+      }
+      await rename(tempPath, outputPath);
+      return outputPath;
+    }
+
+    const remux = await runFfmpeg(ffmpegPath, [
+      '-y',
+      '-v',
+      'error',
+      '-i',
+      sourcePath,
+      '-map',
+      '0',
+      '-c',
+      'copy',
+      '-movflags',
+      '+faststart',
+      tempPath,
+    ]);
+    if (remux.code === 0 && (await isValidMediaFile(tempPath))) {
+      await rename(tempPath, outputPath);
+      return outputPath;
+    }
+    await safeRemove(tempPath);
+    const transcode = await runFfmpeg(ffmpegPath, [
+      '-y',
+      '-v',
+      'error',
+      '-i',
+      sourcePath,
+      '-map',
+      '0:v:0',
+      '-map',
+      '0:a:0?',
+      '-c:v',
+      'libx264',
+      '-preset',
+      'veryfast',
+      '-crf',
+      '20',
+      '-c:a',
+      'aac',
+      '-b:a',
+      '192k',
+      '-movflags',
+      '+faststart',
+      tempPath,
+    ]);
+    if (transcode.code !== 0) {
+      await safeRemove(tempPath);
+      throw new Error(
+        `Failed to transcode MKV to MP4: ${transcode.stderr || 'Unknown error'}`,
+      );
+    }
+    if (!(await isValidMediaFile(tempPath))) {
+      await safeRemove(tempPath);
+      throw new Error('Transcoded file is invalid.');
+    }
+    await rename(tempPath, outputPath);
+    return outputPath;
+  })();
+  remuxTasks.set(sourcePath, task);
+  return task;
+}
+
+async function getMediaCacheDir() {
+  const base = await appDataDir();
+  const dir = await join(base, 'media-cache');
+  await mkdir(dir, { recursive: true });
+  return dir;
+}
+
+async function fileExists(dir: string, targetName: string) {
+  const entries = await readDir(dir).catch(() => []);
+  return entries.some((entry) => entry.name === targetName);
+}
+
+function hashPath(value: string) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  }
+  return hash.toString(16);
+}
+
+function sanitizeFileName(value: string) {
+  return value.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
+}
+
+async function getPrimaryVideoCodec(sourcePath: string) {
+  try {
+    const { ffprobePath } = await ensureFfmpeg();
+    const result = await runFfprobe(ffprobePath, [
+      '-v',
+      'error',
+      '-select_streams',
+      'v:0',
+      '-show_entries',
+      'stream=codec_name',
+      '-of',
+      'json',
+      sourcePath,
+    ]);
+    if (result.code !== 0) {
+      return 'unknown';
+    }
+    const payload = JSON.parse(result.stdout || '{}') as {
+      streams?: Array<{ codec_name?: string }>;
+    };
+    const codec = payload.streams?.[0]?.codec_name;
+    return codec || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+async function isValidMediaFile(path: string) {
+  try {
+    const { ffprobePath } = await ensureFfmpeg();
+    const result = await runFfprobe(ffprobePath, [
+      '-v',
+      'error',
+      '-show_entries',
+      'format=duration',
+      '-show_entries',
+      'stream=codec_type,codec_name',
+      '-of',
+      'json',
+      path,
+    ]);
+    if (result.code !== 0) {
+      return false;
+    }
+    const payload = JSON.parse(result.stdout || '{}') as {
+      format?: { duration?: string };
+      streams?: Array<{ codec_type?: string; codec_name?: string }>;
+    };
+    const duration = Number.parseFloat(payload.format?.duration ?? '0');
+    if (!Number.isFinite(duration) || duration <= 0) {
+      return false;
+    }
+    const hasVideo = payload.streams?.some(
+      (stream) => stream.codec_type === 'video' && stream.codec_name,
+    );
+    return Boolean(hasVideo);
+  } catch {
+    return false;
+  }
+}
+
+async function safeRemove(path: string) {
+  try {
+    await remove(path);
+  } catch {
+    // Ignore cleanup errors.
+  }
 }

@@ -54,7 +54,7 @@ type PlayerScreenProps = {
   onTogglePlay: () => void;
   onPrevSubtitle: () => void;
   onNextSubtitle: () => void;
-  onToggleFullscreen: () => void;
+  onToggleFullscreen: (target?: HTMLElement | null) => void;
   isFullscreen: boolean;
   onCloseMiniPlayer: () => void;
   onToggleLoop: () => void;
@@ -146,6 +146,7 @@ export function PlayerScreen({
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
   const [layoutWidth, setLayoutWidth] = useState(0);
+  const videoAreaRef = useRef<HTMLDivElement | null>(null);
   const layoutRef = useRef<HTMLDivElement | null>(null);
   const resizeState = useRef<{ startX: number; startWidth: number } | null>(null);
   const minPlayerWidth = 420;
@@ -189,6 +190,7 @@ export function PlayerScreen({
         }
       >
         <div
+          ref={videoAreaRef}
           className={styles.videoArea}
           onDoubleClick={(event) => {
             const target = event.target as HTMLElement;
@@ -375,7 +377,7 @@ export function PlayerScreen({
               onTogglePlay={onTogglePlay}
               onPrevSubtitle={onPrevSubtitle}
               onNextSubtitle={onNextSubtitle}
-              onToggleFullscreen={onToggleFullscreen}
+              onToggleFullscreen={() => onToggleFullscreen(videoAreaRef.current)}
               isFullscreen={isFullscreen}
               onToggleLoop={onToggleLoop}
               onSeek={onSeek}

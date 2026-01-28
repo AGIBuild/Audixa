@@ -30,6 +30,10 @@
       "allow": [{ "path": "**" }]
     },
     {
+      "identifier": "fs:allow-rename",
+      "allow": [{ "path": "**" }]
+    },
+    {
       "identifier": "fs:allow-watch",
       "allow": [{ "path": "**" }]
     },

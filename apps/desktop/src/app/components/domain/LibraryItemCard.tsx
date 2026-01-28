@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from '../../app.module.css';
 import type { LibraryItem } from '../../data/types';
 import { getFileName, getParentPath } from '../../data/utils';
@@ -18,6 +18,7 @@ export function LibraryItemCard({ item, onSelect, onRename, onDelete }: LibraryI
   const fileName = useMemo(() => getFileName(item.uri), [item.uri]);
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(fileName);
+  const ignoreBlurRef = useRef(false);
   const showActions = Boolean(onRename || onDelete);
 
   useEffect(() => {
@@ -58,6 +59,27 @@ export function LibraryItemCard({ item, onSelect, onRename, onDelete }: LibraryI
             value={draftName}
             onChange={(event) => setDraftName(event.target.value)}
             onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                event.stopPropagation();
+                handleSaveRename();
+                return;
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                setDraftName(fileName);
+                setIsEditing(false);
+              }
+            }}
+            onBlur={() => {
+              if (ignoreBlurRef.current) {
+                ignoreBlurRef.current = false;
+                return;
+              }
+              handleSaveRename();
+            }}
             autoFocus
           />
         ) : (
@@ -70,6 +92,9 @@ export function LibraryItemCard({ item, onSelect, onRename, onDelete }: LibraryI
                 <IconButton
                   aria-label="Save"
                   title="Save"
+                  onMouseDown={() => {
+                    ignoreBlurRef.current = true;
+                  }}
                   onClick={(event) => {
                     event.stopPropagation();
                     handleSaveRename();
@@ -80,6 +105,9 @@ export function LibraryItemCard({ item, onSelect, onRename, onDelete }: LibraryI
                 <IconButton
                   aria-label="Cancel"
                   title="Cancel"
+                  onMouseDown={() => {
+                    ignoreBlurRef.current = true;
+                  }}
                   onClick={(event) => {
                     event.stopPropagation();
                     setDraftName(fileName);

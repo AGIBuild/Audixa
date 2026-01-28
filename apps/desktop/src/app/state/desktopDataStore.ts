@@ -344,7 +344,7 @@ export const useDesktopDataStore = create<DesktopDataState>((set, get) => ({
     }
     const library = libraries.find((item) => item.id === activeLibraryId);
     if (!library || library.type !== 'local-manual') {
-      set({ error: 'Deleting files is only supported for local libraries.' });
+      set({ error: 'Deleting items is only supported for local libraries.' });
       return;
     }
     const item = libraryItems.find((entry) => entry.id === itemId);

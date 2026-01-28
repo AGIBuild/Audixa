@@ -22,7 +22,7 @@ import type {
   VocabItemRecord,
 } from './store';
 import { getSqlClient } from './sqliteClient';
-import { rename, remove } from '@tauri-apps/plugin-fs';
+import { rename } from '@tauri-apps/plugin-fs';
 import { createSqliteStore } from './sqliteStore';
 import { saveWebDavPassword, readWebDavPassword } from './keyring';
 import { listWebDavMedia } from './webdavClient';
@@ -471,7 +471,6 @@ export function createRepository(store: DesktopDataStore): DesktopRepository {
       return mapLibraryItem(updatedItem);
     },
     async deleteLibraryItem(item) {
-      await remove(item.uri);
       await store.deleteLibraryItem(item.id);
     },
     async getAppSetting(key) {
