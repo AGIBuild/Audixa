@@ -9,11 +9,11 @@ export default defineConfig(() => ({
   cacheDir: '../../node_modules/.vite/apps/desktop',
   server: {
     port: 4201,
-    host: 'localhost',
+    host: '127.0.0.1',
   },
   preview: {
     port: 4201,
-    host: 'localhost',
+    host: '127.0.0.1',
   },
   plugins: [react(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
   // Uncomment this if you are using workers.

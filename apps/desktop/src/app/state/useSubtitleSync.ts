@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import type { SubtitleItem } from '../data';
+import type { SubtitleItem } from '../data/types';
 import { usePlayerStore } from './playerStore';
 import { useUiStore } from './uiStore';
 
@@ -7,17 +7,25 @@ export function useSubtitleSync(items: SubtitleItem[]) {
   const activeScreen = useUiStore((state) => state.activeScreen);
   const activeSubtitle = useUiStore((state) => state.activeSubtitle);
   const setActiveSubtitle = useUiStore((state) => state.setActiveSubtitle);
-  const progress = usePlayerStore((state) => state.progress);
+  const currentTime = usePlayerStore((state) => state.currentTime);
 
   useEffect(() => {
-    if (activeScreen !== 'player' || items.length === 0) {
+    if (activeScreen !== 'player') {
       return;
     }
-    const step = 100 / items.length;
-    const index = Math.min(items.length - 1, Math.floor(progress / step));
-    const nextId = items[index]?.id;
-    if (nextId && nextId !== activeSubtitle) {
+    if (items.length === 0) {
+      if (activeSubtitle) {
+        setActiveSubtitle('');
+      }
+      return;
+    }
+    const currentMs = Number.isFinite(currentTime) ? currentTime * 1000 : 0;
+    const nextItem = items.find(
+      (item) => currentMs >= item.startMs && currentMs <= item.endMs,
+    );
+    const nextId = nextItem?.id ?? '';
+    if (nextId !== activeSubtitle) {
       setActiveSubtitle(nextId);
     }
-  }, [activeScreen, activeSubtitle, items, progress, setActiveSubtitle]);
+  }, [activeScreen, activeSubtitle, currentTime, items, setActiveSubtitle]);
 }

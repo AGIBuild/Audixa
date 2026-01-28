@@ -1,19 +1,19 @@
 import styles from '../../app.module.css';
-import { IconButton } from '../atoms/IconButton';
 
 type VocabHeaderProps = {
   word: string;
-  phonetic: string;
+  pronunciation: string | null;
 };
 
-export function VocabHeader({ word, phonetic }: VocabHeaderProps) {
+export function VocabHeader({ word, pronunciation }: VocabHeaderProps) {
   return (
     <div className={styles.vocabHeader}>
       <div className={styles.vocabWord}>
         {word}
-        <span className={styles.vocabPhonetic}>{phonetic}</span>
+        {pronunciation ? (
+          <span className={styles.vocabPhonetic}>{pronunciation}</span>
+        ) : null}
       </div>
-      <IconButton className={styles.audioButton}>Audio</IconButton>
     </div>
   );
 }

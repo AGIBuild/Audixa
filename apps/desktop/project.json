@@ -6,11 +6,17 @@
   "tags": ["type:app", "scope:desktop"],
   "// targets": "to see all targets run: nx show project desktop --web",
   "targets": {
-    "dev": {
+    "prepare-ffmpeg": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm -w exec tauri dev",
-        "cwd": "apps/desktop"
+        "command": "pnpm -w prepare:ffmpeg"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["prepare-ffmpeg"],
+      "options": {
+        "command": "node scripts/desktop-dev.mjs"
       }
     },
     "typecheck": {

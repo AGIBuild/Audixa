@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ScreenId = 'library' | 'player' | 'listening' | 'vocabulary';
+export type ScreenId = 'library' | 'player' | 'listening' | 'vocabulary' | 'settings';
 
 const maskLabels = ['Mask: Off', 'Mask: Hide CN', 'Mask: Hide EN', 'Mask: Blind'] as const;
 
