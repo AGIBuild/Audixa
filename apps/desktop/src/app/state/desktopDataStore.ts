@@ -67,6 +67,7 @@ type DesktopDataState = {
   deleteVocabItem: (id: string) => Promise<void>;
   clearActiveSource: () => void;
   recordRecentPlayback: (progress: number) => Promise<void>;
+  deleteRecentItem: (id: string) => Promise<void>;
 };
 
 type MediaSourceSnapshot = {
@@ -586,6 +587,19 @@ export const useDesktopDataStore = create<DesktopDataState>((set, get) => ({
     } catch (error) {
       set({
         error: getErrorMessage(error, 'Failed to update recents.'),
+      });
+    }
+  },
+  deleteRecentItem: async (id) => {
+    try {
+      const repo = await getDesktopRepository();
+      await repo.deleteRecentItem(id);
+      set((state) => ({
+        recentItems: state.recentItems.filter((item) => item.id !== id),
+      }));
+    } catch (error) {
+      set({
+        error: getErrorMessage(error, 'Failed to delete recent item.'),
       });
     }
   },

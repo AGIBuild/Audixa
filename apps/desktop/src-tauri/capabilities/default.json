@@ -18,6 +18,10 @@
       "allow": [{ "path": "**" }]
     },
     {
+      "identifier": "fs:allow-stat",
+      "allow": [{ "path": "**" }]
+    },
+    {
       "identifier": "fs:allow-mkdir",
       "allow": [{ "path": "**" }]
     },
@@ -47,21 +51,6 @@
       "allow": [
         { "url": "http://**" },
         { "url": "https://**" }
-      ]
-    },
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "name": "binaries/ffprobe",
-          "sidecar": true,
-          "args": true
-        },
-        {
-          "name": "binaries/ffmpeg",
-          "sidecar": true,
-          "args": true
-        }
       ]
     },
     "sql:default",

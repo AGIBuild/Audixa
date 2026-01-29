@@ -74,6 +74,7 @@ export function SubtitleOverlay({
     <div
       ref={overlayRef}
       className={styles.subtitleOverlay}
+      data-subtitle-overlay
       onMouseUp={handleSelection}
       onKeyUp={handleSelection}
     >

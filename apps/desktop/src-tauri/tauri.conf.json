@@ -6,6 +6,7 @@
   "build": {
     "frontendDist": "../../dist/apps/desktop",
     "devUrl": "http://127.0.0.1:4201",
+    "beforeDevCommand": "node -e \"\"",
     "beforeBuildCommand": "pnpm -w prepare:ffmpeg && pnpm -w nx run desktop:build"
   },
   "app": {
@@ -31,10 +32,6 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "externalBin": [
-      "binaries/ffmpeg",
-      "binaries/ffprobe"
-    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -45,8 +45,11 @@ export type RecentItem = {
   mediaSourceId: string;
   title: string;
   location: string;
+  uri: string;
+  libraryName: string | null;
   progress: number;
   lastPlayedAt: string;
+  isValid: boolean;
 };
 
 export type SubtitleItem = {

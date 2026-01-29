@@ -29,7 +29,12 @@ export function PlayerTimeline({
   };
 
   return (
-    <div className={styles.progressTrack} onClick={handleClick} role="presentation">
+    <div
+      className={styles.progressTrack}
+      onClick={handleClick}
+      role="presentation"
+      aria-label="Seek"
+    >
       <div className={styles.progressActive} style={{ width: `${progress}%` }} />
       <div
         className={`${styles.abMarker} ${showMarkerA ? styles.abMarkerActive : ''}`}

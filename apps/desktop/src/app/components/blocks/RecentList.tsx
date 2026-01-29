@@ -5,9 +5,10 @@ import { MediaList } from './MediaList';
 type RecentListProps = {
   items: RecentItem[];
   onSelect?: (sourceId: string) => void;
+  onDelete?: (id: string) => void;
 };
 
-export function RecentList({ items, onSelect }: RecentListProps) {
+export function RecentList({ items, onSelect, onDelete }: RecentListProps) {
   return (
     <MediaList
       items={items}
@@ -17,6 +18,7 @@ export function RecentList({ items, onSelect }: RecentListProps) {
           key={item.id}
           item={item}
           onSelect={onSelect ? () => onSelect(item.mediaSourceId) : undefined}
+          onDelete={onDelete ? () => onDelete(item.id) : undefined}
         />
       )}
     />

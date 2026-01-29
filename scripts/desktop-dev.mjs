@@ -38,37 +38,51 @@ function spawnShellCommand(command, options) {
   return spawn(command, { stdio: 'inherit', shell: true, ...options });
 }
 
+function tryKillStaleProcesses() {
+  if (process.platform !== 'win32') {
+    return;
+  }
+  // Kill stale processes silently to avoid file-lock issues on Windows.
+  for (const imageName of ['app.exe', 'Audixa.exe']) {
+    spawn(`taskkill /IM ${imageName} /F >nul 2>&1`, {
+      shell: true,
+      stdio: 'ignore',
+    });
+  }
+}
+
 async function main() {
   const serverReady = await isServerReady(devUrl);
   let viteProcess = null;
+
   if (!serverReady) {
-    console.log('Starting Vite dev server...');
+    console.log('[dev] Starting Vite...');
     viteProcess = spawnShellCommand(
       'pnpm -w exec -- vite --config apps/desktop/vite.config.mts --port 4201 --host 127.0.0.1 --strictPort',
-      {
-        cwd: repoRoot,
-        env: process.env,
-      },
+      { cwd: repoRoot, env: process.env },
     );
     viteProcess.on('error', (error) => {
-      console.error(`Failed to start Vite: ${error.message}`);
+      console.error(`[dev] Vite error: ${error.message}`);
     });
     const ready = await waitForServer(devUrl, 40000);
     if (!ready) {
       viteProcess.kill('SIGINT');
-      throw new Error('Vite dev server did not start on http://127.0.0.1:4201/.');
+      throw new Error('Vite did not start in time.');
     }
   } else {
-    console.log('Reusing existing Vite dev server.');
+    console.log('[dev] Vite already running.');
   }
 
-  console.log('Starting Tauri dev...');
+  tryKillStaleProcesses();
+
+  console.log('[dev] Starting Tauri...');
+  const devEnv = { ...process.env };
+  delete devEnv.CARGO_TARGET_DIR;
+  delete devEnv.cargo_target_dir;
+
   const tauriProcess = spawnShellCommand('pnpm -w exec tauri dev', {
     cwd: desktopCwd,
-    env: {
-      ...process.env,
-      CARGO_INCREMENTAL: '0',
-    },
+    env: { ...devEnv, CARGO_INCREMENTAL: devEnv.CARGO_INCREMENTAL ?? '0' },
   });
 
   const cleanup = (code) => {
@@ -80,12 +94,12 @@ async function main() {
 
   tauriProcess.on('exit', (code) => cleanup(code ?? 0));
   tauriProcess.on('error', (error) => {
-    console.error(`Failed to start Tauri: ${error.message}`);
+    console.error(`[dev] Tauri error: ${error.message}`);
     cleanup(1);
   });
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(`[dev] ${error instanceof Error ? error.message : error}`);
   process.exit(1);
 });

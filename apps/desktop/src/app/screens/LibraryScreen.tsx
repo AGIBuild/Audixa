@@ -29,6 +29,7 @@ type LibraryScreenProps = {
   }) => void;
   onCreateCloudDriveLibrary: (name: string) => void;
   onSelectRecent: (sourceId: string) => void;
+  onDeleteRecent: (id: string) => void;
   onDeleteLibrary: () => void;
   onRenameLibraryItem: (itemId: string, nextName: string) => void;
   onDeleteLibraryItem: (itemId: string) => void;
@@ -49,6 +50,7 @@ export function LibraryScreen({
   onCreateWebDavLibrary,
   onCreateCloudDriveLibrary,
   onSelectRecent,
+  onDeleteRecent,
   onDeleteLibrary,
   onRenameLibraryItem,
   onDeleteLibraryItem,
@@ -253,7 +255,7 @@ export function LibraryScreen({
           </div>
         ) : (
           <div className={styles.scrollArea}>
-            <RecentList items={recentItems} onSelect={onSelectRecent} />
+            <RecentList items={recentItems} onSelect={onSelectRecent} onDelete={onDeleteRecent} />
           </div>
         )}
       </div>

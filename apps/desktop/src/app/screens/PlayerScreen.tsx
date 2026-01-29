@@ -2,8 +2,9 @@ import styles from '../app.module.css';
 import { IconGlyph } from '../components/atoms/IconGlyph';
 import { IconButton } from '../components/atoms/IconButton';
 import { PrimaryButton } from '../components/atoms/PrimaryButton';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { BurnedSubtitleMask } from '../components/blocks/BurnedSubtitleMask';
+import { LyricsStage } from '../components/blocks/LyricsStage';
 import { MediaSurface } from '../components/blocks/MediaSurface';
 import { PlayerControls } from '../components/blocks/PlayerControls';
 import { PlayerTimeline } from '../components/blocks/PlayerTimeline';
@@ -146,9 +147,13 @@ export function PlayerScreen({
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isResizing, setIsResizing] = useState(false);
   const [layoutWidth, setLayoutWidth] = useState(0);
+  const [lyricsScrollToken, setLyricsScrollToken] = useState(0);
+  const [isHovering, setIsHovering] = useState(false);
+  const [headerAutoVisible, setHeaderAutoVisible] = useState(true);
   const videoAreaRef = useRef<HTMLDivElement | null>(null);
   const layoutRef = useRef<HTMLDivElement | null>(null);
   const resizeState = useRef<{ startX: number; startWidth: number } | null>(null);
+  const headerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const minPlayerWidth = 420;
   const maxSidebarWidth = layoutWidth ? Math.max(0, layoutWidth - minPlayerWidth) : sidebarWidth;
   const sidebarWidthClamped = useMemo(() => {
@@ -158,6 +163,41 @@ export function PlayerScreen({
     return Math.min(maxSidebarWidth, Math.max(0, sidebarWidth));
   }, [layoutWidth, maxSidebarWidth, sidebarWidth]);
   const sidebarVisibleWidth = isSidebarCollapsed ? 44 : sidebarWidthClamped;
+
+  // Auto-hide header after 5 seconds when media is loaded.
+  const showHeader = !activeSource || isHovering || headerAutoVisible;
+  // For video: always show subtitle sidebar (even if no subtitles)
+  // For audio: hide sidebar (uses LyricsStage instead)
+  const hideSubtitleSidebar = isAudio;
+
+  const handleSeekWithLyrics = useCallback(
+    (value: number) => {
+      setLyricsScrollToken((t) => t + 1);
+      onSeek(value);
+    },
+    [onSeek],
+  );
+
+  useEffect(() => {
+    if (!activeSource) {
+      // No media - always show header.
+      setHeaderAutoVisible(true);
+      return;
+    }
+    // Media loaded - show for 5 seconds then hide.
+    setHeaderAutoVisible(true);
+    if (headerTimerRef.current) {
+      clearTimeout(headerTimerRef.current);
+    }
+    headerTimerRef.current = setTimeout(() => {
+      setHeaderAutoVisible(false);
+    }, 5000);
+    return () => {
+      if (headerTimerRef.current) {
+        clearTimeout(headerTimerRef.current);
+      }
+    };
+  }, [activeSource?.id]);
 
   // Pointer events handle resizing.
 
@@ -178,7 +218,7 @@ export function PlayerScreen({
     <section
       className={`${styles.screen} ${styles.playerScreen} ${
         isMini ? styles.playerScreenMini : styles.playerScreenFull
-      } ${isMini && isAudio ? styles.playerScreenMiniAudio : ''}`}
+      } ${isMini && isAudio ? styles.playerScreenMiniAudio : ''} ${!isMini && isAudio ? styles.playerAudioMode : ''}`}
     >
       <div
         ref={layoutRef}
@@ -186,8 +226,10 @@ export function PlayerScreen({
         style={
           isMini
             ? undefined
-            : { gridTemplateColumns: `1fr ${sidebarVisibleWidth}px` }
+            : { gridTemplateColumns: hideSubtitleSidebar ? '1fr 0px' : `1fr ${sidebarVisibleWidth}px` }
         }
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
       >
         <div
           ref={videoAreaRef}
@@ -197,9 +239,10 @@ export function PlayerScreen({
             if (target.closest('button')) {
               return;
             }
+            // Prevent double-click on subtitle overlay from triggering play/pause.
             if (
-              target.closest(`.${styles.subtitleOverlay}`) ||
-              target.closest(`.${styles.subtitleLookupPanel}`)
+              target.closest('[data-subtitle-overlay]') ||
+              target.closest('[data-subtitle-lookup]')
             ) {
               return;
             }
@@ -207,7 +250,17 @@ export function PlayerScreen({
           }}
         >
           <MediaSurface source={activeSource} status={playbackStatus} />
-          <BurnedSubtitleMask region={burnedRegion} isVisible={burnedMaskEnabled} />
+          {isAudio ? null : (
+            <BurnedSubtitleMask region={burnedRegion} isVisible={burnedMaskEnabled} />
+          )}
+          {isAudio && !isMini ? (
+            <LyricsStage
+              items={subtitleItems}
+              activeId={activeSubtitle}
+              onSeek={handleSeekWithLyrics}
+              scrollToken={lyricsScrollToken}
+            />
+          ) : null}
           {isMini ? (
             <IconButton
               onClick={onCloseMiniPlayer}
@@ -218,7 +271,7 @@ export function PlayerScreen({
               <IconGlyph name="close" size={16} />
             </IconButton>
           ) : null}
-          {isMini ? null : (
+          {isMini || isAudio ? null : (
             <SubtitleOverlay
               maskState={maskState}
               lineEn={activeSubtitleItem?.en}
@@ -242,6 +295,20 @@ export function PlayerScreen({
           {playbackError ? (
             <div className={styles.playerError}>{playbackError}</div>
           ) : null}
+          {isMini ? null : (
+            <header
+              className={`${styles.playerHeader} ${showHeader ? '' : styles.playerHeaderHidden}`}
+            >
+              <div className={styles.playerHeaderInfo}>
+                <div className={styles.playerTitle}>
+                  {activeSource?.title ?? 'No media selected'}
+                </div>
+                <div className={styles.playerSubtitle}>
+                  {activeSource?.subtitle ?? 'Select a media item to start'}
+                </div>
+              </div>
+            </header>
+          )}
         </div>
 
         {isMini ? (
@@ -260,7 +327,7 @@ export function PlayerScreen({
                 showMarkerB={loopState >= 2}
                 markerAPosition={loopA}
                 markerBPosition={loopB}
-                onSeek={onSeek}
+                onSeek={handleSeekWithLyrics}
               />
             </div>
             <IconButton
@@ -274,94 +341,90 @@ export function PlayerScreen({
           </div>
         ) : (
           <>
-            <header className={styles.playerHeader}>
-              <div className={styles.playerHeaderInfo}>
-                <div className={styles.playerTitle}>
-                  {activeSource?.title ?? 'No media selected'}
-                </div>
-                <div className={styles.playerSubtitle}>
-                  {activeSource?.subtitle ?? 'Select a media item to start'}
-                </div>
-              </div>
-            </header>
-            <aside
-              className={`${styles.playerSidebar} ${
-                isSidebarCollapsed ? styles.playerSidebarCollapsed : ''
-              }`}
-              style={isMini ? undefined : { width: `${sidebarVisibleWidth}px` }}
-            >
-              {isSidebarCollapsed ? (
-                <div className={styles.sidebarCollapsedContent}>
-                  <IconButton
-                    aria-label="Expand subtitle panel"
-                    title="Expand"
-                    onClick={() => setIsSidebarCollapsed(false)}
-                  >
-                    <IconGlyph name="chevronLeft" />
-                  </IconButton>
-                </div>
-              ) : (
-                <>
-                  <SubtitleSearchPanel
-                    isOpen={subtitleSearchOpen}
-                    status={subtitleSearchStatus}
-                    error={subtitleSearchError ?? burnedDetectionError}
-                    results={subtitleSearchResults}
-                    onSearch={onSearchOnlineSubtitle}
-                    onSelect={onSelectOnlineSubtitle}
-                    onClose={onCloseSubtitleSearch}
-                  />
-                  <SubtitlePanel
-                    items={subtitleItems}
-                    activeId={activeSubtitle}
-                    onSelect={onSelectSubtitle}
-                    error={subtitleError}
-                    onToggleCollapse={() => setIsSidebarCollapsed(true)}
-                    onSaveItem={onSaveSubtitleItem}
-                    formatLabel={
-                      subtitleTracks.find((track) => track.id === activeSubtitleTrackId)?.format ??
-                      null
-                    }
-                  />
-                  <div
-                    className={styles.sidebarResizeHandle}
-                    role="separator"
-                    aria-orientation="vertical"
-                    onPointerDown={(event) => {
-                      resizeState.current = {
-                        startX: event.clientX,
-                        startWidth: sidebarWidthClamped,
-                      };
-                      setIsResizing(true);
-                      event.currentTarget.setPointerCapture(event.pointerId);
-                    }}
-                    onPointerMove={(event) => {
-                      const state = resizeState.current;
-                      if (!state) {
-                        return;
-                      }
-                      event.preventDefault();
-                      const delta = state.startX - event.clientX;
-                      const next = state.startWidth + delta;
-                      const maxWidth = layoutWidth
-                        ? Math.max(0, layoutWidth - minPlayerWidth)
-                        : Number.POSITIVE_INFINITY;
-                      setSidebarWidth(Math.min(maxWidth, Math.max(0, next)));
-                    }}
-                    onPointerUp={(event) => {
-                      resizeState.current = null;
-                      setIsResizing(false);
-                      event.currentTarget.releasePointerCapture(event.pointerId);
-                    }}
-                    onPointerCancel={(event) => {
-                      resizeState.current = null;
-                      setIsResizing(false);
-                      event.currentTarget.releasePointerCapture(event.pointerId);
-                    }}
-                  />
-                </>
-              )}
-            </aside>
+            {hideSubtitleSidebar ? null : (
+              <aside
+                className={`${styles.playerSidebar} ${
+                  isSidebarCollapsed ? styles.playerSidebarCollapsed : ''
+                }`}
+                style={isMini ? undefined : { width: `${sidebarVisibleWidth}px` }}
+              >
+                {isSidebarCollapsed ? (
+                  <div className={styles.sidebarCollapsedContent}>
+                    <IconButton
+                      aria-label="Expand subtitle panel"
+                      title="Expand"
+                      onClick={() => setIsSidebarCollapsed(false)}
+                    >
+                      <IconGlyph name="chevronLeft" />
+                    </IconButton>
+                  </div>
+                ) : (
+                  <>
+                    {isAudio ? null : (
+                      <>
+                        <SubtitleSearchPanel
+                          isOpen={subtitleSearchOpen}
+                          status={subtitleSearchStatus}
+                          error={subtitleSearchError ?? burnedDetectionError}
+                          results={subtitleSearchResults}
+                          onSearch={onSearchOnlineSubtitle}
+                          onSelect={onSelectOnlineSubtitle}
+                          onClose={onCloseSubtitleSearch}
+                        />
+                        <SubtitlePanel
+                          items={subtitleItems}
+                          activeId={activeSubtitle}
+                          onSelect={onSelectSubtitle}
+                          error={subtitleError}
+                          onToggleCollapse={() => setIsSidebarCollapsed(true)}
+                          onSaveItem={onSaveSubtitleItem}
+                          formatLabel={
+                            subtitleTracks.find((track) => track.id === activeSubtitleTrackId)
+                              ?.format ?? null
+                          }
+                        />
+                      </>
+                    )}
+                    <div
+                      className={styles.sidebarResizeHandle}
+                      role="separator"
+                      aria-orientation="vertical"
+                      onPointerDown={(event) => {
+                        resizeState.current = {
+                          startX: event.clientX,
+                          startWidth: sidebarVisibleWidth,
+                        };
+                        setIsResizing(true);
+                        event.currentTarget.setPointerCapture(event.pointerId);
+                      }}
+                      onPointerMove={(event) => {
+                        const state = resizeState.current;
+                        if (!state) {
+                          return;
+                        }
+                        event.preventDefault();
+                        const delta = state.startX - event.clientX;
+                        const next = state.startWidth + delta;
+                        const maxWidth = layoutWidth
+                          ? Math.max(0, layoutWidth - minPlayerWidth)
+                          : Number.POSITIVE_INFINITY;
+                        setSidebarWidth(Math.min(maxWidth, Math.max(0, next)));
+                      }}
+                      onPointerUp={(event) => {
+                        resizeState.current = null;
+                        setIsResizing(false);
+                        event.currentTarget.releasePointerCapture(event.pointerId);
+                      }}
+                      onPointerCancel={(event) => {
+                        resizeState.current = null;
+                        setIsResizing(false);
+                        event.currentTarget.releasePointerCapture(event.pointerId);
+                      }}
+                    />
+                  </>
+                )}
+              </aside>
+            )}
 
             <PlayerControls
               maskLabel={maskLabel}
@@ -380,7 +443,7 @@ export function PlayerScreen({
               onToggleFullscreen={() => onToggleFullscreen(videoAreaRef.current)}
               isFullscreen={isFullscreen}
               onToggleLoop={onToggleLoop}
-              onSeek={onSeek}
+              onSeek={handleSeekWithLyrics}
               onCycleRate={onCycleRate}
               onSetRate={onSetRate}
               onSelectSubtitleTrack={onSelectSubtitleTrack}

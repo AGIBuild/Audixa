@@ -76,6 +76,9 @@ export function createSqliteStore(client: SqlClient): DesktopDataStore {
         ],
       );
     },
+    async deleteRecentPlayback(id) {
+      await client.execute('DELETE FROM recent_playbacks WHERE id = ?', [id]);
+    },
     async listSubtitleTracks(mediaSourceId) {
       return client.select<SubtitleTrackRecord>(
         `SELECT id, media_source_id as mediaSourceId, language, uri, created_at as createdAt

@@ -34,6 +34,7 @@ export function SubtitleLookupPanel({
   return (
     <div
       className={styles.subtitleLookupPanel}
+      data-subtitle-lookup
       style={{
         top: `${position.y}px`,
         left: `${position.x}px`,

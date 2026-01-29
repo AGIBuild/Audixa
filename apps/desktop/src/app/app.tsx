@@ -130,6 +130,7 @@ export function App() {
     deleteVocabItem,
     clearActiveSource,
     recordRecentPlayback,
+    deleteRecentItem,
     updateListeningItemTitle,
     toggleListeningItemFavorite,
     deleteListeningItem,
@@ -770,6 +771,7 @@ export function App() {
             onCreateCloudDriveLibrary={createCloudDriveLibrary}
             onDeleteLibrary={deleteActiveLibrary}
             onSelectRecent={handleSelectRecent}
+            onDeleteRecent={deleteRecentItem}
             onRenameLibraryItem={renameLibraryItem}
             onDeleteLibraryItem={deleteLibraryItem}
           />

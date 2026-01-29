@@ -32,7 +32,7 @@ export function MediaSurface({ source, status }: MediaSurfaceProps) {
             playsInline
           />
         ) : (
-          <audio ref={handleMediaRef} className={styles.audioElement} />
+          <audio ref={handleMediaRef} className={styles.audioElement} preload="auto" />
         )
       ) : null}
       {showPlaceholder ? (

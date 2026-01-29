@@ -22,7 +22,7 @@ import type {
   VocabItemRecord,
 } from './store';
 import { getSqlClient } from './sqliteClient';
-import { rename } from '@tauri-apps/plugin-fs';
+import { rename, stat } from '@tauri-apps/plugin-fs';
 import { createSqliteStore } from './sqliteStore';
 import { saveWebDavPassword, readWebDavPassword } from './keyring';
 import { listWebDavMedia } from './webdavClient';
@@ -103,6 +103,7 @@ export type DesktopRepository = {
     progress: number,
     source?: MediaSourceInput,
   ) => Promise<void>;
+  deleteRecentItem: (id: string) => Promise<void>;
   upsertVocabFromSubtitle: (
     mediaSourceId: string,
     subtitle: SubtitleItem,
@@ -141,11 +142,35 @@ export function createRepository(store: DesktopDataStore): DesktopRepository {
       return records.map(mapSource);
     },
     async listRecents() {
-      const [sources, recents] = await Promise.all([
+      const [sources, recents, libraries] = await Promise.all([
         store.listMediaSources(),
         store.listRecentPlaybacks(),
+        store.listLibraries(),
       ]);
-      return mapRecents(recents, sources);
+      // Load all library items to find which library each source belongs to.
+      const allLibraryItems = await Promise.all(
+        libraries.map((lib) => store.listLibraryItems(lib.id)),
+      );
+      // Build a map from URI to library name.
+      const uriToLibraryName = new Map<string, string>();
+      libraries.forEach((lib, index) => {
+        const items = allLibraryItems[index];
+        for (const item of items) {
+          uriToLibraryName.set(item.uri, lib.name);
+        }
+      });
+
+      // Limit to 10 most recent items.
+      const limitedRecents = recents.slice(0, 10);
+      const mapped = mapRecentsSync(limitedRecents, sources, uriToLibraryName);
+      // Check file validity in parallel.
+      const validityResults = await Promise.all(
+        mapped.map((item) => checkFileExists(item.uri)),
+      );
+      return mapped.map((item, index) => ({
+        ...item,
+        isValid: validityResults[index],
+      }));
     },
     async listListeningItems() {
       const [sources, items] = await Promise.all([
@@ -370,6 +395,9 @@ export function createRepository(store: DesktopDataStore): DesktopRepository {
       };
       await store.upsertRecentPlayback(record);
     },
+    async deleteRecentItem(id) {
+      await store.deleteRecentPlayback(id);
+    },
     async upsertVocabFromSubtitle(mediaSourceId, subtitle, source) {
       const sourceRecord = await ensureMediaSource(store, mediaSourceId, source);
       if (!sourceRecord) {
@@ -501,20 +529,49 @@ function mapSource(record: MediaSourceRecord): SourceItem {
   };
 }
 
-function mapRecents(records: RecentPlaybackRecord[], sources: MediaSourceRecord[]): RecentItem[] {
+function mapRecentsSync(
+  records: RecentPlaybackRecord[],
+  sources: MediaSourceRecord[],
+  uriToLibraryName: Map<string, string>,
+): Omit<RecentItem, 'isValid'>[] {
   const sourceMap = new Map(sources.map((source) => [source.id, source]));
   return records.map((record) => {
     const source = sourceMap.get(record.mediaSourceId);
-    const location = source ? getParentPath(source.uri) || source.uri : 'Unknown source';
+    const uri = source?.uri ?? '';
+    const location = uri || 'Unknown source';
+    const libraryName = uriToLibraryName.get(uri) ?? null;
     return {
       id: record.id,
       mediaSourceId: record.mediaSourceId,
       title: source?.title ?? 'Unknown media',
       location,
+      uri,
+      libraryName,
       progress: record.progress,
       lastPlayedAt: record.lastPlayedAt,
     };
   });
+}
+
+async function checkFileExists(uri: string): Promise<boolean> {
+  if (!uri) {
+    return false;
+  }
+  // Skip remote URLs - assume they are valid.
+  if (uri.startsWith('http://') || uri.startsWith('https://')) {
+    return true;
+  }
+  try {
+    await stat(uri);
+    return true;
+  } catch (err) {
+    // Only log unexpected errors, not "file not found" errors.
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    if (!errorMessage.includes('not found') && !errorMessage.includes('No such file')) {
+      console.warn('[repository] checkFileExists error for:', uri, errorMessage);
+    }
+    return false;
+  }
 }
 
 function mapListeningItems(

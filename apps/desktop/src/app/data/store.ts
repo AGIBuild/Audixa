@@ -97,6 +97,7 @@ export type DesktopDataStore = {
   updateMediaSource: (record: MediaSourceRecord) => Promise<void>;
   listRecentPlaybacks: () => Promise<RecentPlaybackRecord[]>;
   upsertRecentPlayback: (record: RecentPlaybackRecord) => Promise<void>;
+  deleteRecentPlayback: (id: string) => Promise<void>;
   listSubtitleTracks: (mediaSourceId: string) => Promise<SubtitleTrackRecord[]>;
   insertSubtitleTrack: (record: SubtitleTrackRecord) => Promise<void>;
   listListeningItems: () => Promise<ListeningItemRecord[]>;

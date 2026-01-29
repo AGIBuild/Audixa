@@ -12,8 +12,7 @@
     "ci:test": "nx run-many -t test --all --nx-bail",
     "ci:lint": "nx run-many -t lint --all --nx-bail",
     "ci:typecheck": "nx run-many -t typecheck --all --nx-bail",
-    "desktop:dev": "nx run desktop:dev",
-    "prepare:ffmpeg": "node scripts/prepare-ffmpeg-sidecar.mjs"
+    "desktop:dev": "nx run desktop:dev"
   },
   "devDependencies": {
     "@babel/core": "^7.14.5",

@@ -1,15 +1,12 @@
 import { appDataDir, join } from '@tauri-apps/api/path';
-import { mkdir, readDir, readFile, remove, readTextFile, writeFile } from '@tauri-apps/plugin-fs';
+import { mkdir, readDir, readFile, writeFile } from '@tauri-apps/plugin-fs';
 import { fetch } from '@tauri-apps/plugin-http';
 import type { LibraryItem, LibraryType, MediaKind, SubtitleItem } from './types';
 import { getFileName, getFileStem, getParentPath } from './utils';
-import { ensureFfmpeg } from './ffmpegManager';
-import { runFfprobe, runFfmpeg } from './ffmpegRunner';
 import { parseSubtitleContent } from './subtitleParser';
 import { getDesktopRepository } from './repository';
 import { readWebDavPassword } from './keyring';
 import type { BurnedSubtitleRegion, SubtitleTrack } from '../state/subtitleStore';
-import { createWorker } from 'tesseract.js';
 
 type SubtitleLoadResult = {
   tracks: SubtitleTrack[];
@@ -25,15 +22,7 @@ type SubtitleSourceContext = {
   libraryItems: LibraryItem[];
 };
 
-type EmbeddedDiscoveryResult = {
-  tracks: SubtitleTrack[];
-  error?: string;
-};
-
 const externalExtensions: SubtitleTrack['format'][] = ['srt', 'vtt', 'ass', 'lrc'];
-const burnedFrameCount = 5;
-const burnedFrameRate = 1;
-const burnedScaleWidth = 640;
 
 type BurnedSubtitleDetection = {
   region: BurnedSubtitleRegion | null;
@@ -48,31 +37,20 @@ export async function loadSubtitlesForSource(
     return { tracks: [], activeTrackId: null, items: [] };
   }
 
-  const { tracks: embeddedTracks, error: embeddedError } =
-    context.kind !== 'audio'
-      ? await discoverEmbeddedTracks(context)
-      : { tracks: [], error: undefined };
+  // Only external subtitles are supported (no embedded subtitle extraction).
   const externalTrack = await discoverExternalTrack(context);
-  if (embeddedError) {
-    console.warn('[subtitle] embedded discovery failed:', embeddedError);
-  }
+  const tracks = externalTrack ? [externalTrack] : [];
 
-  const tracks = [
-    ...embeddedTracks,
-    ...(externalTrack ? [externalTrack] : []),
-  ];
   if (preferredTrackId === 'off') {
     return { tracks, activeTrackId: null, items: [] };
   }
+
   const activeTrackId =
     preferredTrackId && tracks.some((track) => track.id === preferredTrackId)
       ? preferredTrackId
       : tracks[0]?.id ?? null;
 
   if (!activeTrackId) {
-    if (embeddedError) {
-      throw new Error(embeddedError);
-    }
     return { tracks, activeTrackId: null, items: [] };
   }
 
@@ -85,185 +63,18 @@ export async function loadSubtitleTrack(
   track: SubtitleTrack,
   context: SubtitleSourceContext,
 ): Promise<SubtitleItem[]> {
-  if (track.kind === 'embedded') {
-    return extractEmbeddedSubtitle(track, context);
+  // Only external subtitles are supported.
+  if (track.kind !== 'external') {
+    return [];
   }
   return loadExternalSubtitle(track, context);
 }
 
 export async function detectBurnedSubtitleRegion(
-  context: SubtitleSourceContext,
+  _context: SubtitleSourceContext,
 ): Promise<BurnedSubtitleDetection> {
-  if (context.kind === 'audio') {
-    return { region: null };
-  }
-  try {
-    const { ffmpegPath } = await ensureFfmpeg();
-    const authHeader = await getWebDavAuthHeader(context);
-    const cacheDir = await getSubtitleCacheDir();
-    const detectDir = await join(cacheDir, `burned-${Date.now()}`);
-    await mkdir(detectDir, { recursive: true });
-    const outputPattern = await join(detectDir, 'frame-%02d.png');
-    const args = ['-y', '-v', 'error'];
-    if (authHeader) {
-      args.push('-headers', authHeader);
-    }
-    args.push(
-      '-i',
-      context.uri,
-      '-vf',
-      `fps=${burnedFrameRate},scale=${burnedScaleWidth}:-1`,
-      '-frames:v',
-      String(burnedFrameCount),
-      outputPattern,
-    );
-    const result = await runFfmpeg(ffmpegPath, args);
-    if (result.code !== 0) {
-      return {
-        region: null,
-        error: `FFmpeg frame sampling failed (code ${result.code}).`,
-      };
-    }
-    const entries = await readDir(detectDir);
-    const framePaths = entries
-      .filter((entry) => entry.path?.endsWith('.png'))
-      .map((entry) => entry.path!)
-      .sort();
-    if (framePaths.length === 0) {
-      return { region: null, error: 'No frames generated for OCR.' };
-    }
-
-    const worker = await createWorker();
-    const ocrLanguages = await getOcrLanguages();
-    if ('load' in worker) {
-      await worker.load();
-    }
-    if ('loadLanguage' in worker) {
-      await worker.loadLanguage(ocrLanguages);
-      await worker.initialize(ocrLanguages);
-    }
-
-    const regions: BurnedSubtitleRegion[] = [];
-    for (const framePath of framePaths) {
-      const buffer = await readFile(framePath);
-      const blob = new Blob([buffer], { type: 'image/png' });
-      // eslint-disable-next-line no-await-in-loop
-      const result = await worker.recognize(blob);
-      const data = result.data as {
-        words?: Array<{
-          text?: string;
-          confidence?: number;
-          bbox?: { x0: number; y0: number; x1: number; y1: number };
-        }>;
-        imageWidth?: number;
-        imageHeight?: number;
-      };
-      const { region } = extractBurnedRegion(data);
-      if (region) {
-        regions.push(region);
-      }
-    }
-
-    if ('terminate' in worker) {
-      await worker.terminate();
-    }
-
-    for (const framePath of framePaths) {
-      try {
-        // Best-effort cleanup.
-        await remove(framePath);
-      } catch {
-        // Ignore cleanup errors.
-      }
-    }
-
-    const merged = mergeStableRegion(regions);
-    return { region: merged };
-  } catch (error) {
-    return {
-      region: null,
-      error:
-        error instanceof Error && error.message
-          ? error.message
-          : 'Burned-in subtitle detection failed.',
-    };
-  }
-}
-
-async function discoverEmbeddedTracks(
-  context: SubtitleSourceContext,
-): Promise<EmbeddedDiscoveryResult> {
-  try {
-    const { ffprobePath } = await ensureFfmpeg();
-    const authHeader = await getWebDavAuthHeader(context);
-    const args = [
-      '-v',
-      'error',
-      '-print_format',
-      'json',
-      '-show_streams',
-      '-select_streams',
-      's',
-    ];
-    if (authHeader) {
-      args.push('-headers', authHeader);
-    }
-    args.push(context.uri);
-    const result = await runFfprobe(ffprobePath, args);
-    if (result.code !== 0) {
-      return {
-        tracks: [],
-        error: `FFprobe failed (code ${result.code}): ${
-          result.stderr?.trim() || result.stdout?.trim() || 'Unknown error.'
-        }`,
-      };
-    }
-
-    let data: { streams?: Array<Record<string, unknown>> } = {};
-    try {
-      data = JSON.parse(result.stdout.trim()) as {
-        streams?: Array<Record<string, unknown>>;
-      };
-    } catch {
-      return {
-        tracks: [],
-        error: `FFprobe output parse failed: ${result.stdout.slice(0, 200)}`,
-      };
-    }
-
-    const streams = data.streams ?? [];
-    const tracks: SubtitleTrack[] = [];
-    for (const stream of streams) {
-      const codec = String(stream.codec_name ?? '');
-      if (!isTextSubtitleCodec(codec)) {
-        continue;
-      }
-      const language = getStreamLanguage(stream);
-      const index = Number(stream.index ?? -1);
-      if (!Number.isFinite(index) || index < 0) {
-        continue;
-      }
-      tracks.push({
-        id: `embedded-${index}`,
-        kind: 'embedded',
-        format: 'srt',
-        label: `Track ${index + 1} · ${language ?? 'Unknown'} (${codec})`,
-        language,
-        source: context.uri,
-        streamIndex: index,
-      });
-    }
-
-    return { tracks };
-  } catch (error) {
-    return {
-      tracks: [],
-      error:
-        error instanceof Error && error.message
-          ? error.message
-          : 'FFprobe execution failed.',
-    };
-  }
+  // Burned-in subtitle detection is disabled (requires FFmpeg).
+  return { region: null };
 }
 
 async function discoverExternalTrack(
@@ -297,41 +108,6 @@ async function discoverExternalTrack(
     label: `${fileName} (${matched.format})`,
     source: matched.path,
   };
-}
-
-async function extractEmbeddedSubtitle(
-  track: SubtitleTrack,
-  context: SubtitleSourceContext,
-): Promise<SubtitleItem[]> {
-  if (track.streamIndex === undefined) {
-    return [];
-  }
-  const { ffmpegPath } = await ensureFfmpeg();
-  const authHeader = await getWebDavAuthHeader(context);
-  const cacheDir = await getSubtitleCacheDir();
-  const outputPath = await join(
-    cacheDir,
-    `embedded-${track.streamIndex}-${Date.now()}.srt`,
-  );
-  const args = ['-y', '-v', 'error'];
-  if (authHeader) {
-    args.push('-headers', authHeader);
-  }
-  args.push(
-    '-i',
-    context.uri,
-    '-map',
-    `0:${track.streamIndex}`,
-    '-c:s',
-    'srt',
-    outputPath,
-  );
-  const result = await runFfmpeg(ffmpegPath, args);
-  if (result.code !== 0) {
-    return [];
-  }
-  const content = await readSubtitleTextFromFile(outputPath);
-  return parseSubtitleContent('srt', content);
 }
 
 async function loadExternalSubtitle(
@@ -493,30 +269,6 @@ async function getSubtitleCacheDir() {
   return dir;
 }
 
-function isTextSubtitleCodec(codec: string) {
-  return ['subrip', 'ass', 'ssa', 'webvtt', 'mov_text'].includes(codec);
-}
-
-function getStreamLanguage(stream: Record<string, unknown>) {
-  const tags = stream.tags as Record<string, string> | undefined;
-  return tags?.language;
-}
-
-async function getOcrLanguages() {
-  const repo = await getDesktopRepository();
-  const raw = await repo.getAppSetting('ocrLanguages');
-  return normalizeOcrLanguages(raw);
-}
-
-function normalizeOcrLanguages(value: string | null) {
-  const parts = (value ?? '')
-    .split(/[,+\s]+/)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-  const unique = Array.from(new Set(parts));
-  return unique.length ? unique.join('+') : 'eng';
-}
-
 async function readSubtitleTextFromFile(path: string) {
   const buffer = await readFile(path);
   return decodeSubtitleBuffer(new Uint8Array(buffer));
@@ -605,79 +357,4 @@ function isValidUtf8(buffer: Uint8Array) {
     return false;
   }
   return true;
-}
-
-function extractBurnedRegion(data: {
-  words?: Array<{
-    text?: string;
-    confidence?: number;
-    bbox?: { x0: number; y0: number; x1: number; y1: number };
-  }>;
-  imageWidth?: number;
-  imageHeight?: number;
-}): { region: BurnedSubtitleRegion | null } {
-  const words = (data.words ?? []).filter(
-    (word) => (word.confidence ?? 0) > 60 && (word.text ?? '').trim().length > 0,
-  );
-  const width = data.imageWidth ?? 0;
-  const height = data.imageHeight ?? 0;
-  if (!width || !height || words.length < 2) {
-    return { region: null };
-  }
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = 0;
-  let maxY = 0;
-  for (const word of words) {
-    const box = word.bbox;
-    if (!box) {
-      continue;
-    }
-    minX = Math.min(minX, box.x0);
-    minY = Math.min(minY, box.y0);
-    maxX = Math.max(maxX, box.x1);
-    maxY = Math.max(maxY, box.y1);
-  }
-  if (!Number.isFinite(minX) || !Number.isFinite(minY) || maxX <= minX || maxY <= minY) {
-    return { region: null };
-  }
-  const region: BurnedSubtitleRegion = {
-    x: minX / width,
-    y: minY / height,
-    width: (maxX - minX) / width,
-    height: (maxY - minY) / height,
-  };
-  return { region };
-}
-
-function mergeStableRegion(regions: BurnedSubtitleRegion[]) {
-  if (regions.length < 2) {
-    return null;
-  }
-  const average = regions.reduce(
-    (acc, region) => ({
-      x: acc.x + region.x,
-      y: acc.y + region.y,
-      width: acc.width + region.width,
-      height: acc.height + region.height,
-    }),
-    { x: 0, y: 0, width: 0, height: 0 },
-  );
-  const count = regions.length;
-  const mean = {
-    x: average.x / count,
-    y: average.y / count,
-    width: average.width / count,
-    height: average.height / count,
-  };
-  const maxDeviation = regions.reduce((acc, region) => {
-    const deviation = Math.max(
-      Math.abs(region.x - mean.x),
-      Math.abs(region.y - mean.y),
-      Math.abs(region.width - mean.width),
-      Math.abs(region.height - mean.height),
-    );
-    return Math.max(acc, deviation);
-  }, 0);
-  return maxDeviation > 0.08 ? null : mean;
 }

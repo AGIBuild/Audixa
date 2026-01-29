@@ -430,3 +430,4 @@ vitest.config.*.timestamp*
 vite.config.*.timestamp*
 
 /binaries/
+/.audixa/
