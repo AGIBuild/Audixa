@@ -89,9 +89,33 @@ Unlike regular players, Audixa transforms every subtitle sentence into an intera
 - VTT (web standard)
 - ASS/SSA (styled subtitles)
 
+## Installation
+
+Download the latest release for your platform from [Releases](https://github.com/AGIBuild/Audixa/releases).
+
+### macOS
+
+> **Note**: The app is not notarized yet. macOS may show "Audixa is damaged and can't be opened."
+
+**Fix**: Open Terminal and run:
+
+```bash
+xattr -cr /Applications/Audixa.app
+```
+
+Then reopen the app.
+
+### Windows
+
+Run the `.exe` or `.msi` installer directly.
+
+### Linux
+
+Use `.deb` (Debian/Ubuntu), `.rpm` (Fedora/RHEL), or `.AppImage` (universal).
+
 ## Quick Start
 
-1. **Install** — Download for your platform
+1. **Install** — Download for your platform (see above)
 2. **Import** — Add video/audio files to library
 3. **Load Subtitles** — Auto-detect or search online
 4. **Learn** — Click, loop, mask, and master
