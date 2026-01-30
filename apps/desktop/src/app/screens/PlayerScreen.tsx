@@ -243,7 +243,7 @@ export function PlayerScreen({
       >
         <div
           ref={videoAreaRef}
-          className={styles.videoArea}
+          className={`${styles.videoArea}${isFullscreen ? ` ${styles.videoAreaFullscreen}` : ''}`}
           data-player-area
           onDoubleClick={(event) => {
             const target = event.target as HTMLElement;
@@ -445,6 +445,7 @@ export function PlayerScreen({
               onNextSubtitle={onNextSubtitle}
               onToggleFullscreen={() => onToggleFullscreen(videoAreaRef.current)}
               isFullscreen={isFullscreen}
+              isVisible={isHovering || headerAutoVisible}
               onToggleLoop={onToggleLoop}
               onSeek={handleSeekWithLyrics}
               onCycleRate={onCycleRate}

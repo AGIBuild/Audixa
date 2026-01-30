@@ -19,6 +19,7 @@ type PlayerControlsProps = {
   onNextSubtitle: () => void;
   onToggleFullscreen: () => void;
   isFullscreen: boolean;
+  isVisible?: boolean;
   onToggleLoop: () => void;
   onSeek: (value: number) => void;
   onCycleRate: () => void;
@@ -49,6 +50,7 @@ export function PlayerControls({
   onNextSubtitle,
   onToggleFullscreen,
   isFullscreen,
+  isVisible = true,
   onToggleLoop,
   onSeek,
   onCycleRate,
@@ -62,8 +64,11 @@ export function PlayerControls({
   onOpenPlaylist,
   isPersistDisabled,
 }: PlayerControlsProps) {
+  const fullscreenClass = isFullscreen
+    ? ` ${styles.controlsAreaFullscreen}${isVisible ? ` ${styles.controlsAreaVisible}` : ''}`
+    : '';
   return (
-    <div className={styles.controlsArea}>
+    <div className={`${styles.controlsArea}${fullscreenClass}`}>
       <PlayerTimeline
         progress={progress}
         showMarkerA={loopState >= 1}

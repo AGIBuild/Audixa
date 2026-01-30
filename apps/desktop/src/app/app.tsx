@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import styles from './app.module.css';
 import { AppButton } from './components/atoms/AppButton';
 import { WindowControls } from './components/atoms/WindowControls';
@@ -386,12 +387,22 @@ export function App() {
   }, [isPlaying, recordProgress]);
 
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
+    // Check initial fullscreen state
+    void getCurrentWindow().isFullscreen().then(setIsFullscreen);
+
+    // Listen to Tauri window fullscreen changes (works on macOS)
+    let unlisten: (() => void) | undefined;
+    void getCurrentWindow()
+      .onResized(() => {
+        void getCurrentWindow().isFullscreen().then(setIsFullscreen);
+      })
+      .then((fn) => {
+        unlisten = fn;
+      });
+
+    return () => {
+      unlisten?.();
     };
-    handleFullscreenChange();
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
   const subtitleLoadSeq = useRef(0);
@@ -685,19 +696,11 @@ export function App() {
     }
   }, [activeSubtitle, handleSelectSubtitle, subtitleItems]);
 
-  const handleToggleFullscreen = useCallback((target?: HTMLElement | null) => {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
-      return;
-    }
-    // Use provided target, or find player area by data attribute, or fallback to document
-    const element =
-      target ??
-      document.querySelector<HTMLElement>('[data-player-area]') ??
-      document.documentElement;
-    if ('requestFullscreen' in element) {
-      void element.requestFullscreen();
-    }
+  const handleToggleFullscreen = useCallback((_target?: HTMLElement | null) => {
+    // Use Tauri window API for fullscreen (works reliably on macOS)
+    void getCurrentWindow()
+      .isFullscreen()
+      .then((isFs) => getCurrentWindow().setFullscreen(!isFs));
   }, []);
 
   const handleCloseMiniPlayer = useCallback(() => {
