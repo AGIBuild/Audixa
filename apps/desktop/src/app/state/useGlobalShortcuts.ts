@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { register, unregister, isRegistered } from '@tauri-apps/plugin-global-shortcut';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { createLogger } from '../data/logger';
+
+const logger = createLogger('GlobalShortcuts');
 
 export type ShortcutAction =
   | 'togglePlay'
@@ -35,6 +38,10 @@ const shortcuts: ShortcutConfig[] = [
   { accelerator: 'ctrl+alt+]', action: 'increaseRate' },
 ];
 
+// Delay before registering shortcuts - must be long enough for database to initialize
+// to avoid competing for Tauri IPC channel
+const REGISTRATION_DELAY_MS = 3000;
+
 async function unregisterAllShortcuts(): Promise<void> {
   for (const shortcut of shortcuts) {
     try {
@@ -51,6 +58,7 @@ async function unregisterAllShortcuts(): Promise<void> {
 /**
  * System-wide global keyboard shortcuts for player controls.
  * Uses Tauri's global-shortcut plugin for true global shortcuts.
+ * Registration is delayed to avoid blocking UI at startup.
  */
 export function useGlobalShortcuts(handlers: ShortcutHandlers): void {
   const handlersRef = useRef(handlers);
@@ -58,10 +66,11 @@ export function useGlobalShortcuts(handlers: ShortcutHandlers): void {
 
   useEffect(() => {
     let mounted = true;
+    let delayTimer: ReturnType<typeof setTimeout> | null = null;
+    let unlistenClosePromise: Promise<() => void> | null = null;
 
     const registerShortcuts = async () => {
       try {
-        // Unregister all first to avoid duplicates on hot reload
         await unregisterAllShortcuts();
 
         if (!mounted) return;
@@ -77,22 +86,33 @@ export function useGlobalShortcuts(handlers: ShortcutHandlers): void {
             }
           });
         }
-      } catch (error) {
-        console.error('Failed to register global shortcuts:', error);
+
+        // Register close handler only after shortcuts are ready
+        if (mounted) {
+          unlistenClosePromise = getCurrentWindow().onCloseRequested(async () => {
+            await unregisterAllShortcuts();
+          });
+        }
+      } catch (err) {
+        logger.error('Failed to register shortcuts', err);
       }
     };
 
-    void registerShortcuts();
-
-    // Also unregister on window close to ensure cleanup
-    const unlistenClose = getCurrentWindow().onCloseRequested(async () => {
-      await unregisterAllShortcuts();
-    });
+    // Delay registration to avoid competing with database initialization
+    delayTimer = setTimeout(() => {
+      delayTimer = null;
+      void registerShortcuts();
+    }, REGISTRATION_DELAY_MS);
 
     return () => {
       mounted = false;
+      if (delayTimer) {
+        clearTimeout(delayTimer);
+      }
       void unregisterAllShortcuts();
-      void unlistenClose.then((fn) => fn());
+      if (unlistenClosePromise) {
+        void unlistenClosePromise.then((fn) => fn());
+      }
     };
   }, []);
 }

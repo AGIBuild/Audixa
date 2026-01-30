@@ -12,6 +12,9 @@ import type {
 import { pickMediaFiles, pickSubtitleFile } from '../data/dialogs';
 import { getDesktopRepository } from '../data/repository';
 import { subtitleSeed } from '../data/subtitleSeed';
+import { createLogger } from '../data/logger';
+
+const logger = createLogger('DesktopData');
 
 type LibraryCreateInput = {
   name: string;
@@ -122,14 +125,17 @@ export const useDesktopDataStore = create<DesktopDataState>((set, get) => ({
     const nextSeq = get().loadSeq + 1;
     set({ isLoading: true, error: null, loadSeq: nextSeq });
     try {
-      const repo = await getDesktopRepository();
-      const [sources, recentItems, listeningItems, vocabItems, libraries] = await Promise.all([
-        repo.listSources(),
-        repo.listRecents(),
-        repo.listListeningItems(),
-        repo.listVocabItems(),
-        repo.listLibraries(),
-      ]);
+      const repo = await logger.measure('getRepository', () => getDesktopRepository());
+      const [sources, recentItems, listeningItems, vocabItems, libraries] = await logger.measure(
+        'loadAllData',
+        () => Promise.all([
+          repo.listSources(),
+          repo.listRecents(),
+          repo.listListeningItems(),
+          repo.listVocabItems(),
+          repo.listLibraries(),
+        ])
+      );
       if (get().loadSeq !== nextSeq) {
         return;
       }
@@ -146,13 +152,14 @@ export const useDesktopDataStore = create<DesktopDataState>((set, get) => ({
       if (activeLibraryId) {
         await get().selectLibrary(activeLibraryId);
       }
-    } catch (error) {
+    } catch (err) {
       if (get().loadSeq !== nextSeq) {
         return;
       }
+      logger.error('loadAll failed', err);
       set({
         isLoading: false,
-        error: getErrorMessage(error, 'Failed to load data.'),
+        error: getErrorMessage(err, 'Failed to load data.'),
       });
     }
   },

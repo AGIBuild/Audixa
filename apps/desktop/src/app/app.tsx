@@ -13,6 +13,7 @@ import { getParentPath, getFileName, extractSearchQuery } from './data/utils';
 import { detectBurnedSubtitleRegion, loadSubtitleTrack, loadSubtitlesForSource } from './data/subtitleService';
 import { lookupDictionaryWord } from './data/dictionaryClient';
 import { normalizeSelectionText } from './data/selection';
+import { initDatabaseAsync, isDatabaseReady } from './data/sqliteClient';
 import { getMaskLabel, useUiStore } from './state/uiStore';
 import { usePlayerStore } from './state/playerStore';
 import { useSubtitleSync } from './state/useSubtitleSync';
@@ -167,10 +168,37 @@ export function App() {
 
   // Loop handling is managed inside the playback adapter subscription.
 
+  // Start database initialization in background immediately
   useEffect(() => {
-    void loadAll();
+    initDatabaseAsync();
+  }, []);
+
+  // Poll for database readiness, then load data
+  useEffect(() => {
+    let mounted = true;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    
+    const tryLoadData = () => {
+      if (!mounted) return;
+      
+      if (isDatabaseReady()) {
+        void loadAll();
+      } else {
+        // Database not ready yet, poll again in 500ms
+        pollTimer = setTimeout(tryLoadData, 500);
+      }
+    };
+    
+    // Start polling after a short delay to let UI render
+    pollTimer = setTimeout(tryLoadData, 200);
+    
+    return () => {
+      mounted = false;
+      if (pollTimer) clearTimeout(pollTimer);
+    };
   }, [loadAll]);
 
+  // Initialize player immediately - no database dependency
   useEffect(() => {
     initialize();
   }, [initialize]);
@@ -246,16 +274,51 @@ export function App() {
     [],
   );
 
+  const getOnlineSubtitleKey = useCallback(
+    (uri: string) => `online_subtitle:${encodeURIComponent(uri)}`,
+    [],
+  );
+
   const saveSubtitlePreference = useCallback(
-    async (trackId: string | null) => {
+    async (trackId: string | null, onlineTrack?: { id: string; format: string; label: string; source: string }) => {
       if (!activeSource) {
         return;
       }
       const repo = await getDesktopRepository();
       const key = getSubtitlePreferenceKey(activeSource.uri);
       await repo.setAppSetting(key, trackId ?? 'off');
+      
+      // If this is an online subtitle, save the track info for later restoration
+      if (onlineTrack && trackId?.startsWith('online-')) {
+        const onlineKey = getOnlineSubtitleKey(activeSource.uri);
+        await repo.setAppSetting(onlineKey, JSON.stringify(onlineTrack));
+      }
     },
-    [activeSource, getSubtitlePreferenceKey],
+    [activeSource, getSubtitlePreferenceKey, getOnlineSubtitleKey],
+  );
+
+  const loadSavedOnlineSubtitle = useCallback(
+    async (uri: string): Promise<{ id: string; kind: 'external'; format: 'srt' | 'vtt' | 'ass'; label: string; source: string; isOnline: true } | null> => {
+      try {
+        const repo = await getDesktopRepository();
+        const onlineKey = getOnlineSubtitleKey(uri);
+        const saved = await repo.getAppSetting(onlineKey);
+        if (!saved) return null;
+        
+        const data = JSON.parse(saved) as { id: string; format: string; label: string; source: string };
+        return {
+          id: data.id,
+          kind: 'external',
+          format: data.format as 'srt' | 'vtt' | 'ass',
+          label: data.label,
+          source: data.source,
+          isOnline: true,
+        };
+      } catch {
+        return null;
+      }
+    },
+    [getOnlineSubtitleKey],
   );
 
   const recordProgress = useCallback(
@@ -353,7 +416,28 @@ export function App() {
         const repo = await getDesktopRepository();
         const key = getSubtitlePreferenceKey(context.uri);
         const preferredTrackId = await repo.getAppSetting(key);
-        return loadSubtitlesForSource(context, preferredTrackId ?? undefined);
+        
+        // Load local/external subtitles first
+        const result = await loadSubtitlesForSource(context, preferredTrackId ?? undefined);
+        
+        // Check if there's a saved online subtitle for this media
+        const savedOnlineTrack = await loadSavedOnlineSubtitle(context.uri);
+        if (savedOnlineTrack) {
+          // Add the saved online track to the tracks list
+          const hasOnlineTrack = result.tracks.some((t) => t.id === savedOnlineTrack.id);
+          if (!hasOnlineTrack) {
+            result.tracks = [savedOnlineTrack, ...result.tracks];
+          }
+          // If the preferred track is the online one, make it active
+          if (preferredTrackId === savedOnlineTrack.id) {
+            result.activeTrackId = savedOnlineTrack.id;
+            // Load the online subtitle items
+            const onlineItems = await loadSubtitleTrack(savedOnlineTrack, context);
+            result.items = onlineItems;
+          }
+        }
+        
+        return result;
       })()
         .then((result) => {
           if (seq !== subtitleLoadSeq.current) {
@@ -391,6 +475,7 @@ export function App() {
         });
     },
     [
+      loadSavedOnlineSubtitle,
       setActiveSubtitle,
       setBurnedDetectionError,
       setBurnedMaskEnabled,
@@ -774,7 +859,13 @@ export function App() {
       setActiveSubtitle(items[0]?.id ?? '');
       setSubtitleSearchStatus('ready');
       setSubtitleSearchOpen(false);
-      void saveSubtitlePreference(track.id);
+      // Save both the track ID and the full track info for later restoration
+      void saveSubtitlePreference(track.id, {
+        id: track.id,
+        format: track.format,
+        label: track.label,
+        source: track.source,
+      });
     } catch (err) {
       setSubtitleSearchStatus('error');
       setSubtitleSearchError(

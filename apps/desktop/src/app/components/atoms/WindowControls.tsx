@@ -1,24 +1,10 @@
-import { useState, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import styles from '../../app.module.css';
 
 export function WindowControls() {
-  const [isMaximized, setIsMaximized] = useState(false);
-
-  useEffect(() => {
-    const appWindow = getCurrentWindow();
-    // Check initial state
-    void appWindow.isMaximized().then(setIsMaximized);
-
-    // Listen for resize events to update maximize state
-    const unlisten = appWindow.onResized(() => {
-      void appWindow.isMaximized().then(setIsMaximized);
-    });
-
-    return () => {
-      void unlisten.then((fn) => fn());
-    };
-  }, []);
+  // Note: We don't track isMaximized state to avoid Tauri API calls during startup
+  // that could compete with database initialization and cause UI freezes.
+  // The maximize button always shows the maximize icon.
 
   const handleMinimize = () => {
     void getCurrentWindow().minimize();
@@ -49,19 +35,12 @@ export function WindowControls() {
         type="button"
         className={styles.windowControlButton}
         onClick={handleMaximize}
-        aria-label={isMaximized ? 'Restore' : 'Maximize'}
-        title={isMaximized ? 'Restore' : 'Maximize'}
+        aria-label="Maximize"
+        title="Maximize"
       >
-        {isMaximized ? (
-          <svg width="12" height="12" viewBox="0 0 12 12">
-            <rect x="2" y="4" width="6" height="6" fill="none" stroke="currentColor" strokeWidth="1" />
-            <path d="M4 4V2H10V8H8" fill="none" stroke="currentColor" strokeWidth="1" />
-          </svg>
-        ) : (
-          <svg width="12" height="12" viewBox="0 0 12 12">
-            <rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1" />
-          </svg>
-        )}
+        <svg width="12" height="12" viewBox="0 0 12 12">
+          <rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1" />
+        </svg>
       </button>
       <button
         type="button"

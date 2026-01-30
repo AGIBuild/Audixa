@@ -566,15 +566,13 @@ select.inputField option {
 
 .playerHeader {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 8px;
+  left: 8px;
   z-index: 10;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 18px 28px;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
+  padding: 6px 12px;
+  background: transparent;
   opacity: 1;
   transition: opacity 0.3s ease-in-out;
 }
@@ -587,17 +585,24 @@ select.inputField option {
 .playerHeaderInfo {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
+  max-width: 300px;
 }
 
 .playerTitle {
-  font-size: 20px;
+  font-size: 14px;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .playerSubtitle {
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .playerHeaderStatus {
@@ -865,16 +870,17 @@ select.inputField option {
 
 .playerError {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(220, 38, 38, 0.15);
-  border: 1px solid rgba(220, 38, 38, 0.35);
-  color: #fca5a5;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+  padding: 10px 20px;
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.85);
+  color: #fff;
   font-size: 13px;
   text-align: center;
+  max-width: 80%;
 }
 
 .subtitleOverlay {
