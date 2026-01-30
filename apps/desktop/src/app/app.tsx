@@ -436,18 +436,51 @@ export function App() {
     setBurnedRegion,
   ]);
 
-  const handleReloadSubtitles = () => {
+  const handleReloadSubtitles = useCallback(async () => {
     if (!activeSource) {
       return;
     }
-    runSubtitleLoad({
+    // Preserve online subtitle tracks
+    const onlineTracks = subtitleTracks.filter((t) => t.isOnline);
+
+    const context = {
       uri: activeSource.uri,
       kind: activeSource.kind,
       libraryId: activeLibraryId,
       libraryType: activeLibrary?.type ?? null,
       libraryItems,
-    });
-  };
+    };
+
+    const repo = await getDesktopRepository();
+    const key = getSubtitlePreferenceKey(activeSource.uri);
+    const preferredTrackId = await repo.getAppSetting(key);
+    const result = await loadSubtitlesForSource(context, preferredTrackId ?? undefined);
+
+    // Merge: online tracks first, then local tracks
+    const mergedTracks = [...onlineTracks, ...result.tracks];
+
+    // Determine active track: prefer current if still valid, else use result's active
+    const currentStillValid = mergedTracks.some((t) => t.id === activeTrackId);
+    const nextActiveId = currentStillValid ? activeTrackId : result.activeTrackId;
+
+    setTracks(mergedTracks, nextActiveId);
+
+    // If active track changed, reload items
+    if (nextActiveId !== activeTrackId || !currentStillValid) {
+      setItems(result.items);
+      setActiveSubtitle(result.items[0]?.id ?? '');
+    }
+  }, [
+    activeSource,
+    activeLibraryId,
+    activeLibrary?.type,
+    libraryItems,
+    subtitleTracks,
+    activeTrackId,
+    setTracks,
+    setItems,
+    setActiveSubtitle,
+  ]);
 
   const handleLookupSelection = useCallback(
     async ({ text, position, placement }: LookupSelectionPayload) => {
