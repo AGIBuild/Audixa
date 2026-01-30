@@ -23,6 +23,7 @@ type PlayerTransportProps = {
   onCycleRate: () => void;
   onSetRate: (value: number) => void;
   onSelectSubtitleTrack: (id: string | null) => void;
+  onDeleteSubtitleTrack?: (id: string) => void;
   onOpenSubtitleSearch: () => void;
   canSearchOnline: boolean;
   onReloadSubtitles: () => void;
@@ -48,6 +49,7 @@ export function PlayerTransport({
   onCycleRate,
   onSetRate,
   onSelectSubtitleTrack,
+  onDeleteSubtitleTrack,
   onOpenSubtitleSearch,
   canSearchOnline,
   onReloadSubtitles,
@@ -88,10 +90,11 @@ export function PlayerTransport({
 
   const rateOptions = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4];
   const subtitleOptions = [
-    { id: null, label: 'Off' },
+    { id: null, label: 'Off', isOnline: false },
     ...subtitleTracks.map((track) => ({
       id: track.id,
       label: track.label,
+      isOnline: track.isOnline ?? false,
     })),
   ];
 
@@ -102,7 +105,7 @@ export function PlayerTransport({
           className={styles.transportIconButton}
           onClick={onMaskToggle}
           aria-label={maskLabel}
-          title={maskLabel}
+          title={`${maskLabel} (Ctrl+Alt+M)`}
         >
           <IconGlyph name="mask" />
         </IconButton>
@@ -140,21 +143,39 @@ export function PlayerTransport({
                 Reload subtitles
               </button>
               {subtitleOptions.map((option) => (
-                <button
+                <div
                   key={option.id ?? 'off'}
-                  type="button"
-                  className={`${styles.rateOption} ${
+                  className={`${styles.rateOptionRow} ${
                     activeSubtitleTrackId === option.id
                       ? styles.rateOptionActive
                       : ''
                   }`}
-                  onClick={() => {
-                    onSelectSubtitleTrack(option.id);
-                    setIsSubtitleOpen(false);
-                  }}
                 >
-                  {option.label}
-                </button>
+                  <button
+                    type="button"
+                    className={styles.rateOptionLabel}
+                    onClick={() => {
+                      onSelectSubtitleTrack(option.id);
+                      setIsSubtitleOpen(false);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                  {option.isOnline && option.id && onDeleteSubtitleTrack ? (
+                    <button
+                      type="button"
+                      className={styles.rateOptionDelete}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteSubtitleTrack(option.id!);
+                        setIsSubtitleOpen(false);
+                      }}
+                      title="Delete"
+                    >
+                      <IconGlyph name="close" size={12} />
+                    </button>
+                  ) : null}
+                </div>
               ))}
             </div>
           ) : null}
@@ -165,7 +186,7 @@ export function PlayerTransport({
             onClick={() => setIsRateOpen((prev) => !prev)}
             className={styles.rateButton}
             aria-label={`Rate ${playbackRate.toFixed(1)}x`}
-            title={`Rate ${playbackRate.toFixed(1)}x`}
+            title={`Rate ${playbackRate.toFixed(1)}x (Ctrl+Alt+[ / ])`}
           >
             {playbackRate.toFixed(1)}x
           </AppButton>
@@ -194,7 +215,7 @@ export function PlayerTransport({
         <IconButton
           className={styles.transportIconButton}
           aria-label="Previous subtitle"
-          title="Previous subtitle"
+          title="Previous subtitle (Ctrl+Alt+←)"
           onClick={onPrevSubtitle}
         >
           <IconGlyph name="prev" size={28} />
@@ -202,7 +223,7 @@ export function PlayerTransport({
         <PrimaryButton
           onClick={onTogglePlay}
           aria-label={isPlaying ? 'Pause' : 'Play'}
-          title={isPlaying ? 'Pause' : 'Play'}
+          title={isPlaying ? 'Pause (Ctrl+Alt+Space)' : 'Play (Ctrl+Alt+Space)'}
           className={styles.transportPlayButton}
         >
           <IconGlyph
@@ -214,7 +235,7 @@ export function PlayerTransport({
         <IconButton
           className={styles.transportIconButton}
           aria-label="Next subtitle"
-          title="Next subtitle"
+          title="Next subtitle (Ctrl+Alt+→)"
           onClick={onNextSubtitle}
         >
           <IconGlyph name="next" size={28} />
@@ -228,7 +249,7 @@ export function PlayerTransport({
           }`}
           onClick={onToggleLoop}
           aria-label="Loop AB"
-          title="Loop AB"
+          title="Loop AB (Ctrl+Alt+L)"
         >
           <IconGlyph name="loop" />
         </AppButton>
@@ -236,7 +257,7 @@ export function PlayerTransport({
           onClick={onSaveListening}
           disabled={isPersistDisabled}
           aria-label="Save sentence"
-          title="Save sentence"
+          title="Save sentence (Ctrl+Alt+S)"
           className={styles.transportIconButton}
         >
           <IconGlyph name="save" />
@@ -244,7 +265,7 @@ export function PlayerTransport({
         <IconButton
           onClick={onToggleFullscreen}
           aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-          title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          title={isFullscreen ? 'Exit fullscreen (Ctrl+Alt+F)' : 'Enter fullscreen (Ctrl+Alt+F)'}
           className={styles.transportIconButton}
           isActive={isFullscreen}
           activeClassName={styles.transportIconActive}

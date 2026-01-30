@@ -24,6 +24,7 @@ type PlayerControlsProps = {
   onCycleRate: () => void;
   onSetRate: (value: number) => void;
   onSelectSubtitleTrack: (id: string | null) => void;
+  onDeleteSubtitleTrack?: (id: string) => void;
   onOpenSubtitleSearch: () => void;
   canSearchOnline: boolean;
   onReloadSubtitles: () => void;
@@ -53,6 +54,7 @@ export function PlayerControls({
   onCycleRate,
   onSetRate,
   onSelectSubtitleTrack,
+  onDeleteSubtitleTrack,
   onOpenSubtitleSearch,
   canSearchOnline,
   onReloadSubtitles,
@@ -87,6 +89,7 @@ export function PlayerControls({
         onCycleRate={onCycleRate}
         onSetRate={onSetRate}
         onSelectSubtitleTrack={onSelectSubtitleTrack}
+        onDeleteSubtitleTrack={onDeleteSubtitleTrack}
         onOpenSubtitleSearch={onOpenSubtitleSearch}
         canSearchOnline={canSearchOnline}
         onReloadSubtitles={onReloadSubtitles}

@@ -64,6 +64,7 @@ type PlayerScreenProps = {
   onSetRate: (value: number) => void;
   onSelectSubtitle: (id: string) => void;
   onSelectSubtitleTrack: (id: string | null) => void;
+  onDeleteSubtitleTrack?: (id: string) => void;
   onOpenSubtitleSearch: () => void;
   onCloseSubtitleSearch: () => void;
   subtitleSearchOpen: boolean;
@@ -127,6 +128,7 @@ export function PlayerScreen({
   onSetRate,
   onSelectSubtitle,
   onSelectSubtitleTrack,
+  onDeleteSubtitleTrack,
   onOpenSubtitleSearch,
   onCloseSubtitleSearch,
   subtitleSearchOpen,
@@ -448,6 +450,7 @@ export function PlayerScreen({
               onCycleRate={onCycleRate}
               onSetRate={onSetRate}
               onSelectSubtitleTrack={onSelectSubtitleTrack}
+              onDeleteSubtitleTrack={onDeleteSubtitleTrack}
               onOpenSubtitleSearch={onOpenSubtitleSearch}
               canSearchOnline={true}
               onReloadSubtitles={onReloadSubtitles}

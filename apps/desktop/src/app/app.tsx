@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import styles from './app.module.css';
 import { AppButton } from './components/atoms/AppButton';
 import { WindowControls } from './components/atoms/WindowControls';
+import { TitleBarDragRegion } from './components/atoms/TitleBarDragRegion';
 import { LibraryScreen } from './screens/LibraryScreen';
 import { ListeningScreen } from './screens/ListeningScreen';
 import { PlayerScreen } from './screens/PlayerScreen';
@@ -659,19 +660,51 @@ export function App() {
         moviehash,
         languages: subtitleSearchLanguage,
       };
-      const results = await searchOpenSubtitles(apiKey, searchOptions);
+      let results = await searchOpenSubtitles(apiKey, searchOptions);
+
+      // Fallback to title search if hash match returns no results
+      if (results.length === 0 && subtitleSearchInitialQuery) {
+        const fallbackOptions: OpenSubtitleSearchOptions = {
+          query: subtitleSearchInitialQuery,
+          languages: subtitleSearchLanguage,
+        };
+        results = await searchOpenSubtitles(apiKey, fallbackOptions);
+      }
+
       setSubtitleSearchResults(results);
       setSubtitleSearchStatus('ready');
       if (results.length === 0) {
-        setSubtitleSearchError('No matching subtitles found for this file.');
+        setSubtitleSearchError('No matching subtitles found.');
       }
     } catch (err) {
+      // On error, try fallback to title search
+      try {
+        if (subtitleSearchInitialQuery) {
+          const repo = await getDesktopRepository();
+          const apiKey = await repo.getAppSetting('openSubtitlesApiKey');
+          if (apiKey) {
+            const fallbackOptions: OpenSubtitleSearchOptions = {
+              query: subtitleSearchInitialQuery,
+              languages: subtitleSearchLanguage,
+            };
+            const results = await searchOpenSubtitles(apiKey, fallbackOptions);
+            setSubtitleSearchResults(results);
+            setSubtitleSearchStatus('ready');
+            if (results.length === 0) {
+              setSubtitleSearchError('No matching subtitles found.');
+            }
+            return;
+          }
+        }
+      } catch {
+        // Ignore fallback error
+      }
       setSubtitleSearchStatus('error');
       setSubtitleSearchError(
         err instanceof Error ? err.message : 'Auto-match failed.',
       );
     }
-  }, [activeSource, canAutoMatch, subtitleSearchLanguage]);
+  }, [activeSource, canAutoMatch, subtitleSearchLanguage, subtitleSearchInitialQuery]);
 
   const handleSelectOnlineSubtitle = async (result: OpenSubtitleResult) => {
     if (!activeSource) {
@@ -716,6 +749,59 @@ export function App() {
       );
     }
   };
+
+  const handleDeleteSubtitleTrack = useCallback(
+    (trackId: string) => {
+      const track = subtitleTracks.find((t) => t.id === trackId);
+      if (!track || !track.isOnline) {
+        return;
+      }
+
+      // Remove track from list
+      const nextTracks = subtitleTracks.filter((t) => t.id !== trackId);
+      const wasActive = activeTrackId === trackId;
+
+      if (wasActive) {
+        // Switch to first available track or null
+        const nextActiveId = nextTracks[0]?.id ?? null;
+        setTracks(nextTracks, nextActiveId);
+        selectTrack(nextActiveId);
+        if (nextActiveId) {
+          // Reload subtitle items for the new track
+          const nextTrack = nextTracks.find((t) => t.id === nextActiveId);
+          if (nextTrack && activeSource) {
+            void loadSubtitleTrack(nextTrack, {
+              uri: activeSource.uri,
+              kind: activeSource.kind,
+              libraryId: activeLibraryId,
+              libraryType: activeLibrary?.type ?? null,
+              libraryItems,
+            }).then((items) => {
+              setItems(items);
+              setActiveSubtitle(items[0]?.id ?? '');
+            });
+          }
+        } else {
+          setItems([]);
+          setActiveSubtitle('');
+        }
+      } else {
+        setTracks(nextTracks, activeTrackId);
+      }
+    },
+    [
+      subtitleTracks,
+      activeTrackId,
+      activeSource,
+      activeLibraryId,
+      activeLibrary?.type,
+      libraryItems,
+      setTracks,
+      selectTrack,
+      setItems,
+      setActiveSubtitle,
+    ],
+  );
 
   const handleSelectLibraryItem = (itemId: string) => {
     flushSync(() => {
@@ -831,26 +917,7 @@ export function App() {
   return (
     <div className={styles.appShell}>
       <header className={styles.topNav}>
-        <div
-          className={styles.topNavDragRegion}
-          onMouseDown={(e) => {
-            // Only start dragging on left mouse button
-            if (e.button === 0 && e.target === e.currentTarget) {
-              e.preventDefault();
-              void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-                void getCurrentWindow().startDragging();
-              });
-            }
-          }}
-          onDoubleClick={(e) => {
-            // Double-click to toggle maximize
-            if (e.target === e.currentTarget) {
-              void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-                void getCurrentWindow().toggleMaximize();
-              });
-            }
-          }}
-        />
+        <TitleBarDragRegion className={styles.topNavDragRegion} />
         <div className={styles.logo}>Audixa</div>
         <nav className={styles.navLinks}>
           {screens.map((screen) => (
@@ -956,6 +1023,7 @@ export function App() {
             onSetRate={setPlaybackRate}
             onSelectSubtitle={handleSelectSubtitle}
             onSelectSubtitleTrack={handleSelectSubtitleTrack}
+            onDeleteSubtitleTrack={handleDeleteSubtitleTrack}
             onOpenSubtitleSearch={() => setSubtitleSearchOpen(true)}
             onCloseSubtitleSearch={() => setSubtitleSearchOpen(false)}
             subtitleSearchOpen={subtitleSearchOpen}
