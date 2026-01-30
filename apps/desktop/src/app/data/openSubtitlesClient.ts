@@ -14,14 +14,45 @@ export type OpenSubtitleResult = {
   downloads: number;
 };
 
+export type OpenSubtitleSearchOptions = {
+  query?: string;
+  moviehash?: string;
+  languages?: string;
+  type?: 'movie' | 'episode' | 'all';
+  year?: number;
+  imdbId?: string;
+};
+
 export async function searchOpenSubtitles(
-  query: string,
   apiKey: string,
-  language = 'en',
+  options: OpenSubtitleSearchOptions,
 ): Promise<OpenSubtitleResult[]> {
   const params = new URLSearchParams();
-  params.set('query', query);
-  params.set('languages', language);
+
+  if (options.query) {
+    params.set('query', options.query);
+  }
+  if (options.moviehash) {
+    params.set('moviehash', options.moviehash);
+  }
+  if (options.languages) {
+    params.set('languages', options.languages);
+  }
+  if (options.type && options.type !== 'all') {
+    params.set('type', options.type);
+  }
+  if (options.year) {
+    params.set('year', String(options.year));
+  }
+  if (options.imdbId) {
+    params.set('imdb_id', options.imdbId);
+  }
+
+  // Require at least one search parameter
+  if (!options.query && !options.moviehash && !options.imdbId) {
+    throw new Error('Search requires at least query, moviehash, or imdbId.');
+  }
+
   const response = await fetch(`${OPEN_SUBTITLES_BASE}/subtitles?${params.toString()}`, {
     method: 'GET',
     headers: {
@@ -43,6 +74,7 @@ export async function searchOpenSubtitles(
       };
     }>;
   };
+  const defaultLanguage = options.languages ?? 'en';
   return (payload.data ?? [])
     .map((item) => {
       const attributes = item.attributes ?? {};
@@ -51,7 +83,7 @@ export async function searchOpenSubtitles(
       return {
         id: String(item.id ?? file?.file_id ?? ''),
         fileId: Number(file?.file_id ?? 0),
-        language: String(attributes.language ?? language),
+        language: String(attributes.language ?? defaultLanguage),
         format: String(attributes.format ?? inferSubtitleFormat(fileName)),
         fileName,
         release: String(attributes.release ?? ''),

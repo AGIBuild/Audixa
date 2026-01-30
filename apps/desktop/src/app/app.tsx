@@ -21,7 +21,10 @@ import {
   downloadOpenSubtitle,
   searchOpenSubtitles,
   type OpenSubtitleResult,
+  type OpenSubtitleSearchOptions,
 } from './data/openSubtitlesClient';
+import type { SubtitleSearchOptions } from './components/blocks/SubtitleSearchPanel';
+import { computeMovieHash } from './data/movieHash';
 import { getDesktopRepository } from './data/repository';
 
 const screens = [
@@ -219,6 +222,7 @@ export function App() {
     'idle' | 'loading' | 'ready' | 'error'
   >('idle');
   const [subtitleSearchError, setSubtitleSearchError] = useState<string | null>(null);
+  const [subtitleSearchLanguage, setSubtitleSearchLanguage] = useState('en');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [lookupState, setLookupState] = useState<LookupPanelState>(initialLookupState);
   const lookupSeq = useRef(0);
@@ -575,10 +579,12 @@ export function App() {
     clearActiveSource();
   }, [clearActiveSource, isPlaying, pause]);
 
-  const handleSearchOnlineSubtitles = async (query: string) => {
-    if (!query.trim()) {
+  const handleSearchOnlineSubtitles = async (options: SubtitleSearchOptions) => {
+    if (!options.query?.trim() && !options.moviehash) {
       return;
     }
+    // Store the selected language for auto-match
+    setSubtitleSearchLanguage(options.language);
     setSubtitleSearchStatus('loading');
     setSubtitleSearchError(null);
     try {
@@ -587,7 +593,16 @@ export function App() {
       if (!apiKey) {
         throw new Error('OpenSubtitles API key is missing. Set it in Settings.');
       }
-      const results = await searchOpenSubtitles(query, apiKey);
+      const searchOptions: OpenSubtitleSearchOptions = {
+        languages: options.language,
+      };
+      if (options.query?.trim()) {
+        searchOptions.query = options.query.trim();
+      }
+      if (options.moviehash) {
+        searchOptions.moviehash = options.moviehash;
+      }
+      const results = await searchOpenSubtitles(apiKey, searchOptions);
       setSubtitleSearchResults(results);
       setSubtitleSearchStatus('ready');
       if (results.length === 0) {
@@ -600,6 +615,47 @@ export function App() {
       );
     }
   };
+
+  // Check if auto-match is available (local file, not WebDAV/remote)
+  const canAutoMatch = useMemo(() => {
+    if (!activeSource) return false;
+    if (activeSource.kind !== 'video') return false;
+    // WebDAV URLs start with http:// or https://
+    const uri = activeSource.uri;
+    return !uri.startsWith('http://') && !uri.startsWith('https://');
+  }, [activeSource]);
+
+  const handleAutoMatch = useCallback(async () => {
+    if (!activeSource || !canAutoMatch) {
+      return;
+    }
+    setSubtitleSearchStatus('loading');
+    setSubtitleSearchError(null);
+    try {
+      const repo = await getDesktopRepository();
+      const apiKey = await repo.getAppSetting('openSubtitlesApiKey');
+      if (!apiKey) {
+        throw new Error('OpenSubtitles API key is missing. Set it in Settings.');
+      }
+      // Compute movie hash
+      const moviehash = await computeMovieHash(activeSource.uri);
+      const searchOptions: OpenSubtitleSearchOptions = {
+        moviehash,
+        languages: subtitleSearchLanguage,
+      };
+      const results = await searchOpenSubtitles(apiKey, searchOptions);
+      setSubtitleSearchResults(results);
+      setSubtitleSearchStatus('ready');
+      if (results.length === 0) {
+        setSubtitleSearchError('No matching subtitles found for this file.');
+      }
+    } catch (err) {
+      setSubtitleSearchStatus('error');
+      setSubtitleSearchError(
+        err instanceof Error ? err.message : 'Auto-match failed.',
+      );
+    }
+  }, [activeSource, canAutoMatch, subtitleSearchLanguage]);
 
   const handleSelectOnlineSubtitle = async (result: OpenSubtitleResult) => {
     if (!activeSource) {
@@ -847,6 +903,8 @@ export function App() {
             subtitleSearchResults={subtitleSearchResults}
             onSearchOnlineSubtitle={handleSearchOnlineSubtitles}
             onSelectOnlineSubtitle={handleSelectOnlineSubtitle}
+            onAutoMatch={handleAutoMatch}
+            canAutoMatch={canAutoMatch}
             onReloadSubtitles={handleReloadSubtitles}
             lookupState={lookupState}
             onLookupSelection={handleLookupSelection}

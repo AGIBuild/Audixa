@@ -10,7 +10,7 @@ import { PlayerControls } from '../components/blocks/PlayerControls';
 import { PlayerTimeline } from '../components/blocks/PlayerTimeline';
 import { SubtitleOverlay } from '../components/blocks/SubtitleOverlay';
 import { SubtitlePanel } from '../components/blocks/SubtitlePanel';
-import { SubtitleSearchPanel } from '../components/blocks/SubtitleSearchPanel';
+import { SubtitleSearchPanel, type SubtitleSearchOptions } from '../components/blocks/SubtitleSearchPanel';
 import { SubtitleLookupPanel } from '../components/blocks/SubtitleLookupPanel';
 import type { SourceItem, SubtitleItem } from '../data/types';
 import type { BurnedSubtitleRegion, SubtitleTrack } from '../state/subtitleStore';
@@ -70,8 +70,10 @@ type PlayerScreenProps = {
   subtitleSearchStatus: 'idle' | 'loading' | 'ready' | 'error';
   subtitleSearchError: string | null;
   subtitleSearchResults: OpenSubtitleResult[];
-  onSearchOnlineSubtitle: (query: string) => void;
+  onSearchOnlineSubtitle: (options: SubtitleSearchOptions) => void;
   onSelectOnlineSubtitle: (result: OpenSubtitleResult) => void;
+  onAutoMatch?: () => void;
+  canAutoMatch?: boolean;
   onReloadSubtitles: () => void;
   lookupState: LookupPanelState;
   onLookupSelection: (payload: {
@@ -131,6 +133,8 @@ export function PlayerScreen({
   subtitleSearchResults,
   onSearchOnlineSubtitle,
   onSelectOnlineSubtitle,
+  onAutoMatch,
+  canAutoMatch = false,
   onReloadSubtitles,
   lookupState,
   onLookupSelection,
@@ -370,6 +374,8 @@ export function PlayerScreen({
                           onSearch={onSearchOnlineSubtitle}
                           onSelect={onSelectOnlineSubtitle}
                           onClose={onCloseSubtitleSearch}
+                          onAutoMatch={onAutoMatch}
+                          canAutoMatch={canAutoMatch}
                         />
                         <SubtitlePanel
                           items={subtitleItems}
@@ -448,7 +454,7 @@ export function PlayerScreen({
               onSetRate={onSetRate}
               onSelectSubtitleTrack={onSelectSubtitleTrack}
               onOpenSubtitleSearch={onOpenSubtitleSearch}
-              canSearchOnline={Boolean(burnedRegion)}
+              canSearchOnline={true}
               onReloadSubtitles={onReloadSubtitles}
               onSaveListening={onSaveListening}
               onOpenPlaylist={onOpenPlaylist}
