@@ -8,9 +8,12 @@ type LyricsStageProps = {
   activeId: string;
   onSeek: (timeSeconds: number) => void;
   scrollToken?: number;
+  maskState?: number;
 };
 
-export function LyricsStage({ items, activeId, onSeek, scrollToken }: LyricsStageProps) {
+export function LyricsStage({ items, activeId, onSeek, scrollToken, maskState = 0 }: LyricsStageProps) {
+  // maskState: 0=Off, 1=Hide CN, 2=Hide EN, 3=Blind (full frosted glass)
+  const isMasked = maskState > 0;
   const stageRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -255,6 +258,7 @@ export function LyricsStage({ items, activeId, onSeek, scrollToken }: LyricsStag
       ref={stageRef}
     >
       <div className={styles.lyricsStageOverlay} />
+      {isMasked ? <div className={styles.lyricsMask} /> : null}
       {dragging ? (
         <div className={styles.lyricsReferenceLine} />
       ) : null}

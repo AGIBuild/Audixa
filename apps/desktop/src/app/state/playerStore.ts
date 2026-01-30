@@ -44,6 +44,8 @@ type PlayerState = {
   toggleLoop: () => void;
   cyclePlaybackRate: () => void;
   setPlaybackRate: (rate: number) => void;
+  increaseRate: () => void;
+  decreaseRate: () => void;
   setProgress: (value: number) => void;
   seekToTime: (timeSeconds: number) => void;
 };
@@ -186,6 +188,26 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     playbackAdapter.setRate(nextRate);
     set({ playbackRate: nextRate });
   },
+  increaseRate: () =>
+    set((state) => {
+      const currentIndex = rateSteps.indexOf(state.playbackRate as (typeof rateSteps)[number]);
+      if (currentIndex === -1 || currentIndex >= rateSteps.length - 1) {
+        return state;
+      }
+      const nextRate = rateSteps[currentIndex + 1];
+      playbackAdapter.setRate(nextRate);
+      return { playbackRate: nextRate };
+    }),
+  decreaseRate: () =>
+    set((state) => {
+      const currentIndex = rateSteps.indexOf(state.playbackRate as (typeof rateSteps)[number]);
+      if (currentIndex <= 0) {
+        return state;
+      }
+      const nextRate = rateSteps[currentIndex - 1];
+      playbackAdapter.setRate(nextRate);
+      return { playbackRate: nextRate };
+    }),
   setProgress: (value) => {
     const next = clampPercent(value);
     const duration = get().duration;

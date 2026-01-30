@@ -12,6 +12,7 @@ type UiState = {
   vocabTab: string;
   setActiveScreen: (screen: ScreenId) => void;
   toggleMask: () => void;
+  setMaskState: (value: number) => void;
   setActiveSubtitle: (id: string) => void;
   setListeningFilter: (value: string) => void;
   setVocabTab: (value: string) => void;
@@ -26,6 +27,7 @@ export const useUiStore = create<UiState>((set) => ({
   setActiveScreen: (screen) => set({ activeScreen: screen }),
   toggleMask: () =>
     set((state) => ({ maskState: (state.maskState + 1) % maskLabels.length })),
+  setMaskState: (value) => set({ maskState: value }),
   setActiveSubtitle: (id) => set({ activeSubtitle: id }),
   setListeningFilter: (value) => set({ listeningFilter: value }),
   setVocabTab: (value) => set({ vocabTab: value }),
