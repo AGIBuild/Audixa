@@ -88,29 +88,42 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Update version from tag
+      - name: Update version and pubkey from tag
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           echo "Updating version to $VERSION"
           cd apps/desktop/src-tauri
+          # Update version
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" tauri.conf.json
           else
             sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" tauri.conf.json || \
             sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" tauri.conf.json
           fi
-          cat tauri.conf.json | grep version
+          # Update pubkey if provided
+          if [[ -n "${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}" ]]; then
+            if [[ "$RUNNER_OS" == "Windows" ]]; then
+              sed -i "s/\"pubkey\": \"[^\"]*\"/\"pubkey\": \"${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}\"/" tauri.conf.json
+            else
+              sed -i '' "s/\"pubkey\": \"[^\"]*\"/\"pubkey\": \"${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}\"/" tauri.conf.json || \
+              sed -i "s/\"pubkey\": \"[^\"]*\"/\"pubkey\": \"${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}\"/" tauri.conf.json
+            fi
+          fi
+          cat tauri.conf.json | grep -E "version|pubkey"
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           projectPath: './apps/desktop'
           tauriScript: 'pnpm tauri'
           args: ${{ matrix.args }}
+          includeUpdaterJson: true
 
   publish-release:
     needs: [create-release, build-tauri]
