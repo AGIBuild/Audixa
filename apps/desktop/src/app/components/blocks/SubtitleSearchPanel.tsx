@@ -102,72 +102,81 @@ export function SubtitleSearchPanel({
     }
   };
 
+  const handleOverlayClick = (event: React.MouseEvent) => {
+    // Close when clicking the overlay background, not the panel itself
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
-    <div className={styles.subtitleSearchPanel}>
-      <div className={styles.subtitleSearchHeader}>
-        <span>Online Subtitles</span>
-        <IconButton aria-label="Close search" title="Close" onClick={onClose}>
-          <IconGlyph name="close" />
-        </IconButton>
-      </div>
-      <div className={styles.subtitleSearchRow}>
-        <select
-          className={styles.inputField}
-          value={language}
-          onChange={(event) => setLanguage(event.target.value)}
-          style={{ width: 'auto', minWidth: '100px' }}
-        >
-          {SUBTITLE_LANGUAGES.map((lang) => (
-            <option key={lang.code} value={lang.code}>
-              {lang.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className={styles.subtitleSearchRow}>
-        <input
-          className={styles.inputField}
-          placeholder="Search by title or release"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={handleKeyDown}
-        />
-        <IconButton
-          aria-label={status === 'loading' ? 'Searching' : 'Search'}
-          title={status === 'loading' ? 'Searching...' : 'Search'}
-          onClick={handleSearch}
-          disabled={status === 'loading'}
-        >
-          <IconGlyph name="search" />
-        </IconButton>
-      </div>
-      {canAutoMatch && onAutoMatch ? (
-        <div className={styles.subtitleSearchRow}>
-          <AppButton
-            variant="secondary"
-            onClick={onAutoMatch}
-            disabled={status === 'loading'}
-            style={{ width: '100%' }}
-          >
-            {status === 'loading' ? 'Matching...' : 'Auto Match by File Hash'}
-          </AppButton>
+    <div className={styles.subtitleSearchOverlay} onClick={handleOverlayClick}>
+      <div className={styles.subtitleSearchPanel}>
+        <div className={styles.subtitleSearchHeader}>
+          <span>Online Subtitles</span>
+          <IconButton aria-label="Close search" title="Close" onClick={onClose}>
+            <IconGlyph name="close" />
+          </IconButton>
         </div>
-      ) : null}
-      {error ? <div className={styles.errorBanner}>{error}</div> : null}
-      <div className={styles.subtitleSearchResults}>
-        {results.map((result) => (
-          <button
-            key={result.id}
-            type="button"
-            className={styles.subtitleSearchResult}
-            onClick={() => onSelect(result)}
+        <div className={styles.subtitleSearchRow}>
+          <select
+            className={styles.inputField}
+            value={language}
+            onChange={(event) => setLanguage(event.target.value)}
+            style={{ width: 'auto', minWidth: '100px' }}
           >
-            <div className={styles.subtitleSearchTitle}>{result.fileName}</div>
-            <div className={styles.subtitleSearchMeta}>
-              {result.language} · {result.downloads} downloads
-            </div>
-          </button>
-        ))}
+            {SUBTITLE_LANGUAGES.map((lang) => (
+              <option key={lang.code} value={lang.code}>
+                {lang.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className={styles.subtitleSearchRow}>
+          <input
+            className={styles.inputField}
+            placeholder="Search by title or release"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          <IconButton
+            aria-label={status === 'loading' ? 'Searching' : 'Search'}
+            title={status === 'loading' ? 'Searching...' : 'Search'}
+            onClick={handleSearch}
+            disabled={status === 'loading'}
+          >
+            <IconGlyph name="search" />
+          </IconButton>
+        </div>
+        {canAutoMatch && onAutoMatch ? (
+          <div className={styles.subtitleSearchRow}>
+            <AppButton
+              variant="secondary"
+              onClick={onAutoMatch}
+              disabled={status === 'loading'}
+              style={{ width: '100%' }}
+            >
+              {status === 'loading' ? 'Matching...' : 'Auto Match by File Hash'}
+            </AppButton>
+          </div>
+        ) : null}
+        {error ? <div className={styles.errorBanner}>{error}</div> : null}
+        <div className={styles.subtitleSearchResults}>
+          {results.map((result) => (
+            <button
+              key={result.id}
+              type="button"
+              className={styles.subtitleSearchResult}
+              onClick={() => onSelect(result)}
+            >
+              <div className={styles.subtitleSearchTitle}>{result.fileName}</div>
+              <div className={styles.subtitleSearchMeta}>
+                {result.language} · {result.downloads} downloads
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

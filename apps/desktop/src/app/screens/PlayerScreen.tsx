@@ -372,19 +372,6 @@ export function PlayerScreen({
                   <>
                     {isAudio ? null : (
                       <>
-                        <SubtitleSearchPanel
-                          isOpen={subtitleSearchOpen}
-                          status={subtitleSearchStatus}
-                          error={subtitleSearchError ?? burnedDetectionError}
-                          results={subtitleSearchResults}
-                          onSearch={onSearchOnlineSubtitle}
-                          onSelect={onSelectOnlineSubtitle}
-                          onClose={onCloseSubtitleSearch}
-                          onAutoMatch={onAutoMatch}
-                          canAutoMatch={canAutoMatch}
-                          initialQuery={subtitleSearchInitialQuery}
-                          autoSearch={subtitleSearchAutoSearch}
-                        />
                         <SubtitlePanel
                           items={subtitleItems}
                           activeId={activeSubtitle}
@@ -471,6 +458,19 @@ export function PlayerScreen({
           </>
         )}
       </div>
+      <SubtitleSearchPanel
+        isOpen={subtitleSearchOpen}
+        status={subtitleSearchStatus}
+        error={subtitleSearchError ?? burnedDetectionError}
+        results={subtitleSearchResults}
+        onSearch={onSearchOnlineSubtitle}
+        onSelect={onSelectOnlineSubtitle}
+        onClose={onCloseSubtitleSearch}
+        onAutoMatch={onAutoMatch}
+        canAutoMatch={canAutoMatch}
+        initialQuery={subtitleSearchInitialQuery}
+        autoSearch={subtitleSearchAutoSearch}
+      />
     </section>
   );
 }

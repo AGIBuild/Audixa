@@ -9,16 +9,65 @@
 }
 
 .topNav {
-  height: 60px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 16px;
   background: linear-gradient(90deg, var(--bg-panel), rgba(15, 11, 21, 0.95));
   border-bottom: 1px solid rgba(157, 78, 221, 0.2);
 }
 
+.topNavDragRegion {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.windowControls {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 16px;
+}
+
+.windowControlButton {
+  width: 36px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.windowControlButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+.windowControlButton:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.windowControlClose:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+.windowControlClose:active {
+  background: #c41020;
+}
+
 .logo {
+  position: relative;
+  z-index: 1;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -26,6 +75,8 @@
 }
 
 .navLinks {
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: 16px;
 }
@@ -649,6 +700,16 @@ select.inputField option {
   pointer-events: none;
 }
 
+.lyricsMask {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(20, 15, 30, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
 .lyricsList {
   position: relative;
   z-index: 1;
@@ -940,12 +1001,32 @@ select.inputField option {
   padding: 6px;
 }
 
+.subtitleSearchOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .subtitleSearchPanel {
-  padding: 12px;
+  background: rgba(24, 20, 32, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 12px;
+  min-width: 360px;
+  max-width: min(480px, 90vw);
+  max-height: 70vh;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
 }
 
 .subtitleLookupPanel {
