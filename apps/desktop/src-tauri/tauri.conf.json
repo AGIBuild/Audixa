@@ -2,9 +2,9 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Audixa",
   "version": "0.1.0",
-  "identifier": "com.audixa.app",
+  "identifier": "com.audixa.desktop",
   "build": {
-    "frontendDist": "../../dist/apps/desktop",
+    "frontendDist": "../../../dist/apps/desktop",
     "devUrl": "http://127.0.0.1:4201",
     "beforeDevCommand": "node -e \"\"",
     "beforeBuildCommand": "pnpm -w nx run desktop:build"
