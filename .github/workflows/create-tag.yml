@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -106,6 +107,14 @@ jobs:
           git push origin "v$VERSION"
           echo "✅ Created and pushed tag: v$VERSION"
 
+      - name: Trigger release workflow
+        run: |
+          VERSION="${{ steps.new-version.outputs.new_version }}"
+          gh workflow run release.yml -f tag="v$VERSION"
+          echo "✅ Triggered release workflow for v$VERSION"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Summary
         run: |
           echo "## Release Tag Created" >> $GITHUB_STEP_SUMMARY
@@ -113,4 +122,4 @@ jobs:
           echo "- **Previous version:** ${{ steps.get-latest.outputs.latest_tag }}" >> $GITHUB_STEP_SUMMARY
           echo "- **New version:** v${{ steps.new-version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The release workflow will now build and publish the installers." >> $GITHUB_STEP_SUMMARY
+          echo "The release workflow has been triggered to build and publish the installers." >> $GITHUB_STEP_SUMMARY

@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.0)'
+        required: true
+        type: string
 
 jobs:
   create-release:
@@ -16,11 +22,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Create Release
         id: create-release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
           draft: true
           generate_release_notes: true
 
@@ -45,6 +54,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -90,8 +101,16 @@ jobs:
 
       - name: Update version and pubkey from tag
         shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          # Get tag from input or ref
+          if [[ -n "$INPUT_TAG" ]]; then
+            TAG_NAME="$INPUT_TAG"
+          else
+            TAG_NAME="$GITHUB_REF_NAME"
+          fi
+          VERSION="${TAG_NAME#v}"
           echo "Updating version to $VERSION"
           cd apps/desktop/src-tauri
           # Update version
