@@ -35,7 +35,12 @@ export function createSqliteStore(client: SqlClient): DesktopDataStore {
     async insertMediaSource(record) {
       await client.execute(
         `INSERT INTO media_sources (id, title, uri, kind, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           title = excluded.title,
+           uri = excluded.uri,
+           kind = excluded.kind,
+           updated_at = excluded.updated_at`,
         [
           record.id,
           record.title,
