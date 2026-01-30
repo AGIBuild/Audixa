@@ -1019,12 +1019,13 @@ select.inputField option {
   background: rgba(24, 20, 32, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
-  padding: 16px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-width: 360px;
-  max-width: min(480px, 90vw);
+  min-width: 480px;
+  max-width: min(640px, 90vw);
+  width: 90vw;
   max-height: 70vh;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
 }
@@ -1100,6 +1101,11 @@ select.inputField option {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.subtitleSearchRow input.inputField {
+  flex: 1;
+  min-width: 0;
 }
 
 .subtitleSearchResults {
