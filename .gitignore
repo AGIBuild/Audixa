@@ -422,3 +422,12 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+.nx/installation
+.nx/cache
+.nx/workspace-data
+vitest.config.*.timestamp*
+vite.config.*.timestamp*
+
+/binaries/
+/.audixa/
