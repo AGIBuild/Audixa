@@ -74,6 +74,8 @@ type PlayerScreenProps = {
   onSelectOnlineSubtitle: (result: OpenSubtitleResult) => void;
   onAutoMatch?: () => void;
   canAutoMatch?: boolean;
+  subtitleSearchInitialQuery?: string;
+  subtitleSearchAutoSearch?: boolean;
   onReloadSubtitles: () => void;
   lookupState: LookupPanelState;
   onLookupSelection: (payload: {
@@ -135,6 +137,8 @@ export function PlayerScreen({
   onSelectOnlineSubtitle,
   onAutoMatch,
   canAutoMatch = false,
+  subtitleSearchInitialQuery = '',
+  subtitleSearchAutoSearch = false,
   onReloadSubtitles,
   lookupState,
   onLookupSelection,
@@ -238,6 +242,7 @@ export function PlayerScreen({
         <div
           ref={videoAreaRef}
           className={styles.videoArea}
+          data-player-area
           onDoubleClick={(event) => {
             const target = event.target as HTMLElement;
             if (target.closest('button')) {
@@ -263,6 +268,7 @@ export function PlayerScreen({
               activeId={activeSubtitle}
               onSeek={handleSeekWithLyrics}
               scrollToken={lyricsScrollToken}
+              maskState={maskState}
             />
           ) : null}
           {isMini ? (
@@ -376,6 +382,8 @@ export function PlayerScreen({
                           onClose={onCloseSubtitleSearch}
                           onAutoMatch={onAutoMatch}
                           canAutoMatch={canAutoMatch}
+                          initialQuery={subtitleSearchInitialQuery}
+                          autoSearch={subtitleSearchAutoSearch}
                         />
                         <SubtitlePanel
                           items={subtitleItems}

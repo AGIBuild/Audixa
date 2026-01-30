@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import styles from '../../app.module.css';
 import { IconButton } from '../atoms/IconButton';
 import { IconGlyph } from '../atoms/IconGlyph';
@@ -34,6 +34,10 @@ type SubtitleSearchPanelProps = {
   onClose: () => void;
   onAutoMatch?: () => void;
   canAutoMatch?: boolean;
+  /** Initial query to prefill (e.g., current media title) */
+  initialQuery?: string;
+  /** Auto-trigger search when panel opens */
+  autoSearch?: boolean;
 };
 
 export function SubtitleSearchPanel({
@@ -46,9 +50,42 @@ export function SubtitleSearchPanel({
   onClose,
   onAutoMatch,
   canAutoMatch = false,
+  initialQuery = '',
+  autoSearch = false,
 }: SubtitleSearchPanelProps) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
   const [language, setLanguage] = useState('en');
+  const hasAutoSearched = useRef(false);
+  const prevIsOpen = useRef(isOpen);
+
+  // Update query when initialQuery changes (new media loaded)
+  useEffect(() => {
+    if (initialQuery) {
+      setQuery(initialQuery);
+    }
+  }, [initialQuery]);
+
+  // Auto-search when panel opens
+  useEffect(() => {
+    // Detect panel just opened
+    if (isOpen && !prevIsOpen.current) {
+      hasAutoSearched.current = false;
+    }
+    prevIsOpen.current = isOpen;
+
+    if (!isOpen || hasAutoSearched.current) {
+      return;
+    }
+
+    // Auto-search: prefer hash match for local files, otherwise use query
+    if (autoSearch && canAutoMatch && onAutoMatch) {
+      hasAutoSearched.current = true;
+      onAutoMatch();
+    } else if (autoSearch && initialQuery) {
+      hasAutoSearched.current = true;
+      onSearch({ query: initialQuery, language });
+    }
+  }, [isOpen, autoSearch, canAutoMatch, onAutoMatch, initialQuery, language, onSearch]);
 
   if (!isOpen) {
     return null;

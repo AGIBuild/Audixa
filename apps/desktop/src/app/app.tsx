@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import styles from './app.module.css';
 import { AppButton } from './components/atoms/AppButton';
+import { WindowControls } from './components/atoms/WindowControls';
 import { LibraryScreen } from './screens/LibraryScreen';
 import { ListeningScreen } from './screens/ListeningScreen';
 import { PlayerScreen } from './screens/PlayerScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { VocabularyScreen } from './screens/VocabularyScreen';
-import { getParentPath } from './data/utils';
+import { getParentPath, getFileName, extractSearchQuery } from './data/utils';
 import { detectBurnedSubtitleRegion, loadSubtitleTrack, loadSubtitlesForSource } from './data/subtitleService';
 import { lookupDictionaryWord } from './data/dictionaryClient';
 import { normalizeSelectionText } from './data/selection';
@@ -16,6 +17,7 @@ import { usePlayerStore } from './state/playerStore';
 import { useSubtitleSync } from './state/useSubtitleSync';
 import { useDesktopDataStore } from './state/desktopDataStore';
 import { useSubtitleStore } from './state/subtitleStore';
+import { useGlobalShortcuts } from './state/useGlobalShortcuts';
 import type { LibraryItem, LibraryType, MediaKind, SubtitleItem } from './data/types';
 import {
   downloadOpenSubtitle,
@@ -76,6 +78,7 @@ export function App() {
     vocabTab,
     setActiveScreen,
     toggleMask,
+    setMaskState,
     setActiveSubtitle,
     setListeningFilter,
     setVocabTab,
@@ -100,6 +103,8 @@ export function App() {
     setProgress,
     cyclePlaybackRate,
     setPlaybackRate,
+    increaseRate,
+    decreaseRate,
     seekToTime,
     pause,
   } = usePlayerStore();
@@ -566,7 +571,11 @@ export function App() {
       void document.exitFullscreen();
       return;
     }
-    const element = target ?? document.documentElement;
+    // Use provided target, or find player area by data attribute, or fallback to document
+    const element =
+      target ??
+      document.querySelector<HTMLElement>('[data-player-area]') ??
+      document.documentElement;
     if ('requestFullscreen' in element) {
       void element.requestFullscreen();
     }
@@ -623,6 +632,13 @@ export function App() {
     // WebDAV URLs start with http:// or https://
     const uri = activeSource.uri;
     return !uri.startsWith('http://') && !uri.startsWith('https://');
+  }, [activeSource]);
+
+  // Extract search query from current media file name
+  const subtitleSearchInitialQuery = useMemo(() => {
+    if (!activeSource) return '';
+    const fileName = getFileName(activeSource.uri);
+    return extractSearchQuery(fileName);
   }, [activeSource]);
 
   const handleAutoMatch = useCallback(async () => {
@@ -788,9 +804,53 @@ export function App() {
     setActiveScreen('library');
   }, [setActiveScreen]);
 
+  // Toggle mask with different behavior for audio (on/off) vs video (4 states)
+  const handleToggleMask = useCallback(() => {
+    if (activeSource?.kind === 'audio') {
+      // Audio: toggle between 0 (off) and 1 (on)
+      setMaskState(maskState === 0 ? 1 : 0);
+    } else {
+      // Video: cycle through all 4 states
+      toggleMask();
+    }
+  }, [activeSource?.kind, maskState, setMaskState, toggleMask]);
+
+  // Global keyboard shortcuts for player controls.
+  useGlobalShortcuts({
+    togglePlay,
+    prevSubtitle: handlePrevSubtitle,
+    nextSubtitle: handleNextSubtitle,
+    toggleFullscreen: handleToggleFullscreen,
+    toggleLoop,
+    toggleMask: handleToggleMask,
+    saveListening: handleSaveListening,
+    increaseRate,
+    decreaseRate,
+  });
+
   return (
     <div className={styles.appShell}>
       <header className={styles.topNav}>
+        <div
+          className={styles.topNavDragRegion}
+          onMouseDown={(e) => {
+            // Only start dragging on left mouse button
+            if (e.button === 0 && e.target === e.currentTarget) {
+              e.preventDefault();
+              void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+                void getCurrentWindow().startDragging();
+              });
+            }
+          }}
+          onDoubleClick={(e) => {
+            // Double-click to toggle maximize
+            if (e.target === e.currentTarget) {
+              void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+                void getCurrentWindow().toggleMaximize();
+              });
+            }
+          }}
+        />
         <div className={styles.logo}>Audixa</div>
         <nav className={styles.navLinks}>
           {screens.map((screen) => (
@@ -805,6 +865,7 @@ export function App() {
             </AppButton>
           ))}
         </nav>
+        <WindowControls />
       </header>
 
       <main className={styles.mainArea}>
@@ -882,7 +943,7 @@ export function App() {
             viewMode={activeScreen === 'player' ? 'full' : 'mini'}
             onOpenPlayer={handleOpenPlayer}
             activeSubtitleItem={activeSubtitleItem}
-            onMaskToggle={toggleMask}
+            onMaskToggle={handleToggleMask}
             onTogglePlay={togglePlay}
             onPrevSubtitle={handlePrevSubtitle}
             onNextSubtitle={handleNextSubtitle}
@@ -905,6 +966,8 @@ export function App() {
             onSelectOnlineSubtitle={handleSelectOnlineSubtitle}
             onAutoMatch={handleAutoMatch}
             canAutoMatch={canAutoMatch}
+            subtitleSearchInitialQuery={subtitleSearchInitialQuery}
+            subtitleSearchAutoSearch={true}
             onReloadSubtitles={handleReloadSubtitles}
             lookupState={lookupState}
             onLookupSelection={handleLookupSelection}

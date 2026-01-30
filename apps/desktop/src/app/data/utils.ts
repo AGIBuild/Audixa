@@ -76,3 +76,47 @@ export function formatDurationMs(durationMs: number) {
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
+
+/**
+ * Extract a search query from a media file name.
+ * Cleans up common release tags, resolution markers, and codec info.
+ */
+export function extractSearchQuery(fileName: string): string {
+  const stem = getFileStem(fileName);
+
+  // Replace common separators with spaces
+  let cleaned = stem.replace(/[._]/g, ' ');
+
+  // Remove common release/quality tags
+  const patterns = [
+    // Resolution patterns
+    /\b(720p|1080p|2160p|4k|uhd|hd|sd)\b/gi,
+    // Codec patterns
+    /\b(x264|x265|h\.?264|h\.?265|hevc|avc|xvid|divx)\b/gi,
+    // Audio codec patterns
+    /\b(aac|ac3|dts|flac|mp3|eac3|atmos|truehd)\b/gi,
+    // Source patterns
+    /\b(bluray|bdrip|brrip|webrip|web-dl|webdl|hdtv|dvdrip|hdrip|hdcam|cam|ts|tc)\b/gi,
+    // Release group patterns (in brackets or after dash at end)
+    /\[([^\]]+)\]/g,
+    /\{([^}]+)\}/g,
+    /-\s*[a-z0-9]+$/i,
+    // HDR patterns
+    /\b(hdr|hdr10|dolby\s*vision|dv)\b/gi,
+    // Year in parentheses or brackets (keep if looks like a year)
+    /\((\d{4})\)/g,
+    // Extra whitespace and trailing/leading punctuation
+  ];
+
+  for (const pattern of patterns) {
+    cleaned = cleaned.replace(pattern, ' ');
+  }
+
+  // Collapse multiple spaces and trim
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+
+  // Remove trailing punctuation
+  cleaned = cleaned.replace(/[-–—_.,:;!?]+$/, '').trim();
+
+  return cleaned;
+}
