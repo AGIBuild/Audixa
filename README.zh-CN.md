@@ -6,6 +6,32 @@
 
 Audixa 是一款创新的音视频学习播放器，以**字幕句子**为核心，让你通过观看电影、美剧、纪录片等内容，高效提升语言能力。
 
+## 产品截图
+
+<p align="center">
+  <img src="docs/demo/audixa-player.jpg" alt="播放器 - 句子级字幕控制" width="800"/>
+  <br/>
+  <em>播放器：点击字幕跳转、AB循环、遮罩听力挑战</em>
+</p>
+
+<p align="center">
+  <img src="docs/demo/audixa-library.jpg" alt="媒体库" width="800"/>
+  <br/>
+  <em>媒体库：管理本地文件、NAS、云盘资源</em>
+</p>
+
+<p align="center">
+  <img src="docs/demo/audixa-listening.jpg" alt="精听库" width="800"/>
+  <br/>
+  <em>精听库：保存精彩句子，随时回放复习</em>
+</p>
+
+<p align="center">
+  <img src="docs/demo/audixa-vocabulary.jpg" alt="生词本" width="800"/>
+  <br/>
+  <em>生词本：点词即查，积累个人词汇库</em>
+</p>
+
 ## Audixa 的与众不同
 
 不同于普通播放器，Audixa 将每一句字幕都变成可交互、可追踪的学习单元：

@@ -6,6 +6,32 @@
 
 Audixa is an innovative audio/video player that treats **subtitle sentences as first-class citizens**, enabling efficient language learning through movies, TV shows, documentaries, and more.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/demo/audixa-player.jpg" alt="Player - Sentence-level subtitle control" width="800"/>
+  <br/>
+  <em>Player: Click subtitles to seek, A/B loop, mask for listening challenges</em>
+</p>
+
+<p align="center">
+  <img src="docs/demo/audixa-library.jpg" alt="Media Library" width="800"/>
+  <br/>
+  <em>Media Library: Manage local files, NAS, and cloud sources</em>
+</p>
+
+<p align="center">
+  <img src="docs/demo/audixa-listening.jpg" alt="Listening Library" width="800"/>
+  <br/>
+  <em>Listening Library: Save and replay favorite sentences</em>
+</p>
+
+<p align="center">
+  <img src="docs/demo/audixa-vocabulary.jpg" alt="Vocabulary Book" width="800"/>
+  <br/>
+  <em>Vocabulary: Tap words to lookup, build your word collection</em>
+</p>
+
 ## What Makes Audixa Different
 
 Unlike regular players, Audixa transforms every subtitle sentence into an interactive, trackable learning unit:
