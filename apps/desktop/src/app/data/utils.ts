@@ -79,60 +79,81 @@ export function formatDurationMs(durationMs: number) {
 
 /**
  * Extract a search query from a media file name.
- * Cleans up common release tags, resolution markers, and codec info.
+ * Extracts title and episode number only, removing all other noise.
+ *
+ * Examples:
+ * - "Movie.Name.2023.1080p.BluRay.x264.mkv" → "Movie Name"
+ * - "TV.Show.S01E05.Episode.Title.720p.mkv" → "TV Show S01E05"
+ * - "剧集名.S02E10.中英字幕.mkv" → "剧集名 S02E10"
  */
 export function extractSearchQuery(fileName: string): string {
   const stem = getFileStem(fileName);
 
   // Replace common separators with spaces
-  let cleaned = stem.replace(/[._]/g, ' ');
+  let normalized = stem.replace(/[._]/g, ' ');
 
-  // Remove common release/quality tags
-  const patterns = [
-    // Resolution patterns
-    /\b(720p|1080p|2160p|4k|uhd|hd|sd|480p|576p)\b/gi,
-    // Codec patterns
-    /\b(x264|x265|h\.?264|h\.?265|hevc|avc|xvid|divx|av1|vp9|mpeg4?)\b/gi,
-    // Audio codec patterns
-    /\b(aac|ac3|dts|flac|mp3|eac3|atmos|truehd|dd5\.?1|ddp?5\.?1|7\.1|5\.1|2\.0)\b/gi,
-    // Source patterns
-    /\b(bluray|blu-ray|bdrip|brrip|webrip|web-dl|webdl|hdtv|dvdrip|hdrip|hdcam|cam|ts|tc|remux|proper|repack)\b/gi,
-    // HDR patterns
-    /\b(hdr|hdr10\+?|dolby\s*vision|dv|sdr|hlg)\b/gi,
-    // Language/subtitle tags
-    /\b(chs|cht|eng|jpn|kor|chi|jap|简体|繁体|中英|双语|字幕|内嵌|内封|外挂)\b/gi,
-    // Common release group names
-    /\b(yts|rarbg|sparks|geckos|tigole|qxr|ctrlhd|epsilon|fgt|fleet|ntb|ntg|cmrg|etrg|ettv|eztv)\b/gi,
-    // Season/Episode markers (keep show name, remove markers)
-    /\b(s\d{1,2}e\d{1,2}|season\s*\d+|episode\s*\d+|ep\s*\d+)\b/gi,
-    // Bit depth
-    /\b(8bit|10bit|12bit)\b/gi,
-    // File size indicators
-    /\b\d+(\.\d+)?\s*(gb|mb|tb)\b/gi,
-    // Common suffixes
-    /\b(proper|extended|unrated|directors?\s*cut|theatrical|remastered|anniversary|imax)\b/gi,
-    // Release group patterns (in brackets or after dash at end)
-    /\[([^\]]+)\]/g,
-    /\{([^}]+)\}/g,
-    /【([^】]+)】/g,
-    // Year in parentheses (remove the parentheses but we might want to keep year)
-    /\((\d{4})\)/g,
-    // Trailing release group after dash
-    /-\s*[a-z0-9]{2,}$/i,
+  // Remove content in brackets (usually release info)
+  normalized = normalized.replace(/\[([^\]]+)\]/g, ' ');
+  normalized = normalized.replace(/\{([^}]+)\}/g, ' ');
+  normalized = normalized.replace(/【([^】]+)】/g, ' ');
+  normalized = normalized.replace(/\(([^)]+)\)/g, ' ');
+
+  // Extract episode marker if present (S01E05, EP01, 第01集, E01, etc.)
+  const episodePatterns = [
+    /\b(S\d{1,2}E\d{1,2})\b/i,           // S01E05
+    /\b(S\d{1,2}\s*EP?\d{1,3})\b/i,      // S01EP05, S01 E05
+    /\b(EP?\s*\d{1,3})\b/i,              // EP05, E05
+    /\b(第\s*\d+\s*[集话話期回])\b/,      // 第05集, 第5话
+    /\b(\d{1,3})\s*[集话話期回]\b/,       // 05集, 5话
   ];
 
-  for (const pattern of patterns) {
-    cleaned = cleaned.replace(pattern, ' ');
+  let episodeMarker = '';
+  for (const pattern of episodePatterns) {
+    const match = normalized.match(pattern);
+    if (match) {
+      episodeMarker = match[1].replace(/\s+/g, '');
+      break;
+    }
   }
 
-  // Collapse multiple spaces and trim
-  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  // Find where the title ends (before year, quality tags, or episode marker)
+  const stopPatterns = [
+    /\b(19|20)\d{2}\b/,                  // Year like 2023, 1999
+    /\b(720p|1080p|2160p|4k|uhd|hd)\b/i, // Resolution
+    /\b(bluray|webrip|web-dl|hdtv|dvdrip|bdrip)\b/i, // Source
+    /\b(x264|x265|hevc|avc|xvid)\b/i,    // Codec
+    /\b(aac|ac3|dts|flac)\b/i,           // Audio
+    /\b(chs|cht|eng|简体|繁体|中英|双语|字幕)\b/i, // Language tags
+  ];
 
-  // Remove trailing punctuation and common noise
-  cleaned = cleaned.replace(/[-–—_.,:;!?@#]+$/, '').trim();
+  // If episode marker found, extract title before it
+  let title = normalized;
+  if (episodeMarker) {
+    const episodeMatch = normalized.match(new RegExp(episodeMarker.replace(/([.*+?^${}()|[\]\\])/g, '\\$1'), 'i'));
+    if (episodeMatch && episodeMatch.index !== undefined) {
+      title = normalized.slice(0, episodeMatch.index);
+    }
+  }
 
-  // Remove leading punctuation
-  cleaned = cleaned.replace(/^[-–—_.,:;!?@#]+/, '').trim();
+  // Find earliest stop point
+  let stopIndex = title.length;
+  for (const pattern of stopPatterns) {
+    const match = title.match(pattern);
+    if (match && match.index !== undefined && match.index < stopIndex) {
+      stopIndex = match.index;
+    }
+  }
+  title = title.slice(0, stopIndex);
 
-  return cleaned;
+  // Clean up the title
+  title = title.replace(/\s+/g, ' ').trim();
+  title = title.replace(/[-–—_.,:;!?@#]+$/, '').trim();
+  title = title.replace(/^[-–—_.,:;!?@#]+/, '').trim();
+
+  // Combine title and episode marker
+  if (episodeMarker && title) {
+    return `${title} ${episodeMarker}`;
+  }
+
+  return title || stem.replace(/[._]/g, ' ').trim();
 }
