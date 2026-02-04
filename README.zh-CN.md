@@ -9,33 +9,33 @@ Audixa 是一款创新的音视频学习播放器，以**字幕句子**为核心
 ## 产品截图
 
 <p align="center">
+  <img src="docs/demo/audixa-library.jpg" alt="媒体库" width="800"/>
+  <br/>
+  <em>媒体库：导入并管理本地文件、NAS、云盘资源</em>
+</p>
+
+<p align="center">
   <img src="docs/demo/audixa-player.jpg" alt="播放器 - 句子级字幕控制" width="800"/>
   <br/>
-  <em>播放器：点击字幕跳转、AB循环、遮罩听力挑战</em>
+  <em>播放器：点击字幕跳转、AB 循环、遮罩听力挑战</em>
 </p>
 
 <p align="center">
   <img src="docs/demo/audixa-audio.jpg" alt="音频 - 精听学习视图" width="800"/>
   <br/>
-  <em>音频：以字幕句子为交互单元进行精听训练</em>
-</p>
-
-<p align="center">
-  <img src="docs/demo/audixa-library.jpg" alt="媒体库" width="800"/>
-  <br/>
-  <em>媒体库：管理本地文件、NAS、云盘资源</em>
+  <em>音频：专注精听训练，句子级交互控制</em>
 </p>
 
 <p align="center">
   <img src="docs/demo/audixa-listening.jpg" alt="精听库" width="800"/>
   <br/>
-  <em>精听库：保存精彩句子，随时回放复习</em>
+  <em>精听库：收藏并回放精彩句子，反复复习巩固</em>
 </p>
 
 <p align="center">
   <img src="docs/demo/audixa-vocabulary.jpg" alt="生词本" width="800"/>
   <br/>
-  <em>生词本：点词即查，积累个人词汇库</em>
+  <em>生词本：点词即查并收藏，构建个人词汇库</em>
 </p>
 
 ## Audixa 的与众不同

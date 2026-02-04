@@ -9,33 +9,33 @@ Audixa is an innovative audio/video player that treats **subtitle sentences as f
 ## Screenshots
 
 <p align="center">
+  <img src="docs/demo/audixa-library.jpg" alt="Media Library" width="800"/>
+  <br/>
+  <em>Media Library: Import and organize local files, NAS, and cloud sources</em>
+</p>
+
+<p align="center">
   <img src="docs/demo/audixa-player.jpg" alt="Player - Sentence-level subtitle control" width="800"/>
   <br/>
-  <em>Player: Click subtitles to seek, A/B loop, mask for listening challenges</em>
+  <em>Player: Click subtitles to seek, A/B loop, and mask for listening challenges</em>
 </p>
 
 <p align="center">
   <img src="docs/demo/audixa-audio.jpg" alt="Audio - Listening-focused learning view" width="800"/>
   <br/>
-  <em>Audio: Practice listening with subtitles as interactive sentences</em>
-</p>
-
-<p align="center">
-  <img src="docs/demo/audixa-library.jpg" alt="Media Library" width="800"/>
-  <br/>
-  <em>Media Library: Manage local files, NAS, and cloud sources</em>
+  <em>Audio: Focused listening practice with sentence-level controls</em>
 </p>
 
 <p align="center">
   <img src="docs/demo/audixa-listening.jpg" alt="Listening Library" width="800"/>
   <br/>
-  <em>Listening Library: Save and replay favorite sentences</em>
+  <em>Listening Library: Save, replay, and review favorite sentences</em>
 </p>
 
 <p align="center">
   <img src="docs/demo/audixa-vocabulary.jpg" alt="Vocabulary Book" width="800"/>
   <br/>
-  <em>Vocabulary: Tap words to lookup, build your word collection</em>
+  <em>Vocabulary: Tap words to look up and build your word collection</em>
 </p>
 
 ## What Makes Audixa Different
