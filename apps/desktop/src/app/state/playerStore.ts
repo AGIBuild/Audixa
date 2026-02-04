@@ -1,21 +1,15 @@
 import { create } from 'zustand';
-import type { MediaKind } from '../data/types';
-import { createHtmlMediaAdapter, type PlaybackSource, type PlaybackStatus } from './playbackAdapter';
+import type { MediaKind } from '@audixa/utils';
+import { RATE_STEPS, type LoopState, type PlaybackSource, type PlaybackStatus } from '@audixa/core';
+import { getProgressPercent, clampPercent } from '@audixa/core';
+import { createHtmlMediaAdapter } from './playbackAdapter';
 
-export type LoopState = 0 | 1 | 2;
-
-const rateSteps = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0] as const;
-const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
+export type { LoopState } from '@audixa/core';
 
 const playbackAdapter = createHtmlMediaAdapter();
 let adapterInitialized = false;
 
-export function getProgressPercent(currentTime: number, duration: number) {
-  if (!Number.isFinite(duration) || duration <= 0) {
-    return 0;
-  }
-  return clampPercent((currentTime / duration) * 100);
-}
+export { getProgressPercent } from '@audixa/core';
 
 type PlayerState = {
   status: PlaybackStatus;
@@ -177,34 +171,34 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }),
   cyclePlaybackRate: () =>
     set((state) => {
-      const currentIndex = rateSteps.indexOf(state.playbackRate as (typeof rateSteps)[number]);
-      const nextIndex = currentIndex === -1 ? 1 : (currentIndex + 1) % rateSteps.length;
-      const nextRate = rateSteps[nextIndex];
+      const currentIndex = RATE_STEPS.indexOf(state.playbackRate as (typeof RATE_STEPS)[number]);
+      const nextIndex = currentIndex === -1 ? 1 : (currentIndex + 1) % RATE_STEPS.length;
+      const nextRate = RATE_STEPS[nextIndex] ?? 1.0;
       playbackAdapter.setRate(nextRate);
       return { playbackRate: nextRate };
     }),
   setPlaybackRate: (rate) => {
-    const nextRate = rateSteps.includes(rate as (typeof rateSteps)[number]) ? rate : 1.0;
+    const nextRate = RATE_STEPS.includes(rate as (typeof RATE_STEPS)[number]) ? rate : 1.0;
     playbackAdapter.setRate(nextRate);
     set({ playbackRate: nextRate });
   },
   increaseRate: () =>
     set((state) => {
-      const currentIndex = rateSteps.indexOf(state.playbackRate as (typeof rateSteps)[number]);
-      if (currentIndex === -1 || currentIndex >= rateSteps.length - 1) {
+      const currentIndex = RATE_STEPS.indexOf(state.playbackRate as (typeof RATE_STEPS)[number]);
+      if (currentIndex === -1 || currentIndex >= RATE_STEPS.length - 1) {
         return state;
       }
-      const nextRate = rateSteps[currentIndex + 1];
+      const nextRate = RATE_STEPS[currentIndex + 1] ?? state.playbackRate;
       playbackAdapter.setRate(nextRate);
       return { playbackRate: nextRate };
     }),
   decreaseRate: () =>
     set((state) => {
-      const currentIndex = rateSteps.indexOf(state.playbackRate as (typeof rateSteps)[number]);
+      const currentIndex = RATE_STEPS.indexOf(state.playbackRate as (typeof RATE_STEPS)[number]);
       if (currentIndex <= 0) {
         return state;
       }
-      const nextRate = rateSteps[currentIndex - 1];
+      const nextRate = RATE_STEPS[currentIndex - 1] ?? state.playbackRate;
       playbackAdapter.setRate(nextRate);
       return { playbackRate: nextRate };
     }),

@@ -1,23 +1,8 @@
 import { create } from 'zustand';
-import type { SubtitleItem } from '../data/types';
+import type { SubtitleItem, SubtitleTrack, BurnedSubtitleRegion } from '@audixa/utils';
 
-export type SubtitleTrack = {
-  id: string;
-  label: string;
-  kind: 'embedded' | 'external';
-  format: 'srt' | 'vtt' | 'ass' | 'lrc';
-  language?: string;
-  source: string;
-  streamIndex?: number;
-  isOnline?: boolean;
-};
-
-export type BurnedSubtitleRegion = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
+// Re-export types for consumers
+export type { SubtitleTrack, BurnedSubtitleRegion } from '@audixa/utils';
 
 type SubtitleState = {
   tracks: SubtitleTrack[];

@@ -1,8 +1,8 @@
 import { create } from 'zustand';
+import { MASK_LABELS } from '@audixa/core';
+import type { ScreenId } from '@audixa/core';
 
-export type ScreenId = 'library' | 'player' | 'listening' | 'vocabulary' | 'settings';
-
-const maskLabels = ['Mask: Off', 'Mask: Hide CN', 'Mask: Hide EN', 'Mask: Blind'] as const;
+export type { ScreenId } from '@audixa/core';
 
 type UiState = {
   activeScreen: ScreenId;
@@ -26,13 +26,11 @@ export const useUiStore = create<UiState>((set) => ({
   vocabTab: 'Vocabulary',
   setActiveScreen: (screen) => set({ activeScreen: screen }),
   toggleMask: () =>
-    set((state) => ({ maskState: (state.maskState + 1) % maskLabels.length })),
+    set((state) => ({ maskState: (state.maskState + 1) % MASK_LABELS.length })),
   setMaskState: (value) => set({ maskState: value }),
   setActiveSubtitle: (id) => set({ activeSubtitle: id }),
   setListeningFilter: (value) => set({ listeningFilter: value }),
   setVocabTab: (value) => set({ vocabTab: value }),
 }));
 
-export function getMaskLabel(maskState: number) {
-  return maskLabels[maskState] ?? maskLabels[0];
-}
+export { getMaskLabel } from '@audixa/core';

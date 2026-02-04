@@ -1,35 +1,18 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
-import type { MediaKind } from '../data/types';
+import type { PlaybackSource, PlaybackState, PlaybackStatus } from '@audixa/core';
+import type { PlaybackAdapter } from '@audixa/core';
 
-export type PlaybackStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
+// Re-export types for local use
+export type { PlaybackSource, PlaybackState, PlaybackStatus, PlaybackAdapter } from '@audixa/core';
 
-export type PlaybackSource = {
-  path: string;
-  kind: MediaKind;
-};
-
-export type PlaybackState = {
-  status: PlaybackStatus;
-  currentTime: number;
-  duration: number;
-  rate: number;
-  error: string | null;
-  source: PlaybackSource | null;
-  autoPlay: boolean;
-};
-
-export type PlaybackAdapter = {
+/**
+ * HTML Media Adapter - extends base PlaybackAdapter with setElement for DOM
+ */
+export type HtmlMediaAdapter = PlaybackAdapter & {
   setElement: (element: HTMLMediaElement | null) => void;
-  load: (source: PlaybackSource, options?: { autoPlay?: boolean }) => void;
-  play: () => Promise<void>;
-  pause: () => void;
-  seek: (timeSeconds: number) => void;
-  setRate: (rate: number) => void;
-  subscribe: (listener: (state: PlaybackState) => void) => () => void;
-  getState: () => PlaybackState;
 };
 
-export function createHtmlMediaAdapter(): PlaybackAdapter {
+export function createHtmlMediaAdapter(): HtmlMediaAdapter {
   let element: HTMLMediaElement | null = null;
   let cleanup: (() => void) | null = null;
   let loadSeq = 0;

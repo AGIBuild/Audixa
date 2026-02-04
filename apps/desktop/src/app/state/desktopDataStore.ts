@@ -8,7 +8,7 @@ import type {
   SourceItem,
   SubtitleItem,
   VocabItem,
-} from '../data/types';
+} from '@audixa/utils';
 import { pickMediaFiles, pickSubtitleFile } from '../data/dialogs';
 import { getDesktopRepository } from '../data/repository';
 import { subtitleSeed } from '../data/subtitleSeed';
