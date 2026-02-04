@@ -15,6 +15,12 @@ Audixa 是一款创新的音视频学习播放器，以**字幕句子**为核心
 </p>
 
 <p align="center">
+  <img src="docs/demo/audixa-audio.jpg" alt="音频 - 精听学习视图" width="800"/>
+  <br/>
+  <em>音频：以字幕句子为交互单元进行精听训练</em>
+</p>
+
+<p align="center">
   <img src="docs/demo/audixa-library.jpg" alt="媒体库" width="800"/>
   <br/>
   <em>媒体库：管理本地文件、NAS、云盘资源</em>

@@ -15,6 +15,12 @@ Audixa is an innovative audio/video player that treats **subtitle sentences as f
 </p>
 
 <p align="center">
+  <img src="docs/demo/audixa-audio.jpg" alt="Audio - Listening-focused learning view" width="800"/>
+  <br/>
+  <em>Audio: Practice listening with subtitles as interactive sentences</em>
+</p>
+
+<p align="center">
   <img src="docs/demo/audixa-library.jpg" alt="Media Library" width="800"/>
   <br/>
   <em>Media Library: Manage local files, NAS, and cloud sources</em>
